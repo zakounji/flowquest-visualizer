@@ -1,3 +1,4 @@
+
 export enum EntityType {
   START = "START",
   ACTIVITY = "ACTIVITY",
@@ -5,7 +6,12 @@ export enum EntityType {
   END = "END",
   SYSTEM = "SYSTEM",
   USER = "USER",
-  DATA = "DATA"
+  DATA = "DATA",
+  // Add missing types
+  ACTOR = "ACTOR",
+  TASK = "TASK",
+  EVENT = "EVENT",
+  RESOURCE = "RESOURCE"
 }
 
 export enum RelationshipType {
@@ -13,7 +19,11 @@ export enum RelationshipType {
   DATA_FLOW = "DATA_FLOW",
   DEPENDENCY = "DEPENDENCY",
   ASSOCIATION = "ASSOCIATION",
-  TRIGGER = "TRIGGER"
+  TRIGGER = "TRIGGER",
+  // Add missing types
+  TRANSFER = "TRANSFER",
+  USAGE = "USAGE",
+  COMMUNICATION = "COMMUNICATION"
 }
 
 export interface Entity {
@@ -22,6 +32,11 @@ export interface Entity {
   type: EntityType;
   properties?: Record<string, any>;
   timestamp?: Date;
+  // Add metrics property
+  metrics?: {
+    frequency: number;
+    [key: string]: any;
+  };
 }
 
 export interface Relationship {
@@ -31,6 +46,12 @@ export interface Relationship {
   type?: RelationshipType;
   label?: string;
   properties?: Record<string, any>;
+  // Add metrics property
+  metrics?: {
+    frequency: number;
+    timestamp?: Date;
+    [key: string]: any;
+  };
 }
 
 export interface ProcessData {
@@ -46,4 +67,12 @@ export interface ProcessMetrics {
   averagePathLength: number;
   criticalPathLength: number;
   bottlenecks: string[];
+}
+
+// Add EntityStyleMapping interface
+export interface EntityStyleMapping {
+  [key: string]: {
+    shape: string;
+    color: string;
+  };
 }

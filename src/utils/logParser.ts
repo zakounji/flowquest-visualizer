@@ -2,8 +2,8 @@
 import { Entity, EntityType, Relationship, RelationshipType, ProcessData } from '../types/processTypes';
 
 // Example log format:
-// [timestamp] [component] [action] [details]
-// 2023-01-01T12:00:00 USER_001 SUBMIT_FORM {"formId": "F123", "fields": 5}
+// 15 Jan: S28 moved to orbital launch mount at Pad A for integration testing (NSF)
+// 18 Jan: B9 booster undergoes cryo testing at suborbital pad (RGV photos)
 
 const DEFAULT_ENTITY_TYPES = {
   USER: EntityType.ACTOR,
@@ -27,110 +27,103 @@ export async function parseLogText(logText: string): Promise<ProcessData> {
   // Track event sequence
   let minDate = new Date();
   let maxDate = new Date(0);
+  const currentYear = new Date().getFullYear();
   
   // Process each line
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
     
-    // Extract parts: [timestamp] [component] [action] [details]
-    const match = line.match(/^(\S+)\s+(\S+)\s+(\S+)(?:\s+(.+))?$/);
+    // Extract parts: DD MMM: ENTITY action LOCATION for REASON (SOURCE)
+    // Example: 15 Jan: S28 moved to orbital launch mount at Pad A for integration testing (NSF)
+    const match = line.match(/^(\d+)\s+([A-Za-z]+):\s+([^\s]+)\s+(.+?)(?:\s+\(([^)]+)\))?$/);
     
     if (!match) {
       console.warn(`Line ${i + 1} doesn't match expected format:`, line);
       continue;
     }
     
-    const [_, timestamp, component, action, detailsStr] = match;
+    const [_, day, month, entityName, actionAndLocation, source] = match;
     
-    // Parse timestamp and details
-    const eventTime = new Date(timestamp);
-    let details = {};
+    // Parse date (assuming current year if not specified)
+    const monthIndex = new Date(`${month} 1, 2000`).getMonth();
+    const eventTime = new Date(currentYear, monthIndex, parseInt(day));
     
-    if (detailsStr) {
-      try {
-        details = JSON.parse(detailsStr);
-      } catch (e) {
-        // If not valid JSON, treat as plain text
-        details = { text: detailsStr };
-      }
-    }
+    // Split action and location
+    const actionParts = actionAndLocation.split(' at ');
+    const action = actionParts[0];
+    const location = actionParts.length > 1 ? actionParts[1].split(' for ')[0] : '';
+    const reason = actionParts.length > 1 && actionParts[1].includes(' for ') ? 
+      actionParts[1].split(' for ')[1] : '';
     
     // Update min/max dates
     if (eventTime < minDate) minDate = new Date(eventTime);
     if (eventTime > maxDate) maxDate = new Date(eventTime);
     
-    // Determine entity types
-    const componentType = determineEntityType(component);
-    
-    // Create or update component entity
-    const componentId = component;
-    if (!entitiesMap.has(componentId)) {
-      entitiesMap.set(componentId, {
-        id: componentId,
-        type: componentType,
-        name: formatEntityName(component),
+    // Create or update entity
+    if (!entitiesMap.has(entityName)) {
+      entitiesMap.set(entityName, {
+        id: entityName,
+        type: determineEntityType(entityName),
+        name: formatEntityName(entityName),
         properties: {},
         metrics: { frequency: 0 }
       });
     }
     
-    const componentEntity = entitiesMap.get(componentId)!;
-    componentEntity.metrics.frequency += 1;
+    const entity = entitiesMap.get(entityName)!;
+    entity.metrics!.frequency += 1;
     
-    // If this action involves another entity, create that too
-    if (details && typeof details === 'object' && 'targetId' in details) {
-      const targetId = details.targetId as string;
-      const targetType = determineEntityType(targetId);
-      
-      if (!entitiesMap.has(targetId)) {
-        entitiesMap.set(targetId, {
-          id: targetId,
-          type: targetType,
-          name: formatEntityName(targetId),
+    // Create location entity if it exists
+    if (location) {
+      if (!entitiesMap.has(location)) {
+        entitiesMap.set(location, {
+          id: location,
+          type: EntityType.RESOURCE,
+          name: formatEntityName(location),
           properties: {},
           metrics: { frequency: 0 }
         });
       }
       
-      const targetEntity = entitiesMap.get(targetId)!;
-      targetEntity.metrics.frequency += 1;
+      const locationEntity = entitiesMap.get(location)!;
+      locationEntity.metrics!.frequency += 1;
       
-      // Create relationship between component and target
-      const relationshipId = `${componentId}-${action}-${targetId}`;
+      // Create relationship between entity and location
+      const relationshipId = `${entityName}-AT-${location}`;
       
       if (!relationshipsMap.has(relationshipId)) {
         relationshipsMap.set(relationshipId, {
           id: relationshipId,
-          source: componentId,
-          target: targetId,
-          type: determineRelationshipType(action),
+          source: entityName,
+          target: location,
+          type: RelationshipType.ASSOCIATION,
           properties: { action },
           metrics: { frequency: 0, timestamp: eventTime }
         });
       }
       
       const relationship = relationshipsMap.get(relationshipId)!;
-      relationship.metrics.frequency += 1;
+      relationship.metrics!.frequency += 1;
     }
     
     // If there's a previous line, create sequential relationship
     if (i > 0) {
       const prevLine = lines[i - 1].trim();
-      const prevMatch = prevLine.match(/^(\S+)\s+(\S+)\s+(\S+)(?:\s+(.+))?$/);
+      const prevMatch = prevLine.match(/^(\d+)\s+([A-Za-z]+):\s+([^\s]+)\s+/);
       
       if (prevMatch) {
-        const prevComponent = prevMatch[2];
+        const prevEntity = prevMatch[3];
         
-        // Don't create self-loops if the same component has consecutive actions
-        if (prevComponent !== component) {
-          const flowRelationshipId = `${prevComponent}-FLOW-${component}`;
+        // Don't create self-loops if the same entity has consecutive actions
+        if (prevEntity !== entityName) {
+          const flowRelationshipId = `${prevEntity}-FLOW-${entityName}`;
           
           if (!relationshipsMap.has(flowRelationshipId)) {
             relationshipsMap.set(flowRelationshipId, {
               id: flowRelationshipId,
-              source: prevComponent,
-              target: component,
+              source: prevEntity,
+              target: entityName,
               type: RelationshipType.FLOW,
               properties: {},
               metrics: { frequency: 0 }
@@ -138,7 +131,7 @@ export async function parseLogText(logText: string): Promise<ProcessData> {
           }
           
           const flowRelationship = relationshipsMap.get(flowRelationshipId)!;
-          flowRelationship.metrics.frequency += 1;
+          flowRelationship.metrics!.frequency += 1;
         }
       }
     }
@@ -161,6 +154,20 @@ export async function parseLogText(logText: string): Promise<ProcessData> {
 
 function determineEntityType(id: string): EntityType {
   const upperID = id.toUpperCase();
+  
+  // Check for specific prefixes or patterns in the entity id
+  if (upperID.startsWith('S') && /S\d+/.test(upperID)) {
+    return EntityType.SYSTEM; // Spacecraft/Starship
+  }
+  if (upperID.startsWith('B') && /B\d+/.test(upperID)) {
+    return EntityType.SYSTEM; // Booster
+  }
+  if (upperID.includes('PAD') || upperID.includes('BAY') || upperID.includes('COMPLEX')) {
+    return EntityType.RESOURCE; // Locations
+  }
+  if (upperID.includes('ENGINE') || upperID.includes('RAPTOR')) {
+    return EntityType.RESOURCE; // Components
+  }
   
   // Check for standard prefixes
   if (upperID.startsWith('USER') || upperID.startsWith('PERSON')) {
@@ -186,13 +193,13 @@ function determineEntityType(id: string): EntityType {
 function determineRelationshipType(action: string): RelationshipType {
   const upperAction = action.toUpperCase();
   
-  if (upperAction.includes('SEND') || upperAction.includes('TRANSFER')) {
+  if (upperAction.includes('MOVED') || upperAction.includes('TRANSPORTED') || upperAction.includes('DELIVERED')) {
     return RelationshipType.TRANSFER;
   }
-  if (upperAction.includes('USE') || upperAction.includes('ACCESS')) {
+  if (upperAction.includes('TESTED') || upperAction.includes('INSTALLED') || upperAction.includes('INTEGRATED')) {
     return RelationshipType.USAGE;
   }
-  if (upperAction.includes('COMM') || upperAction.includes('TALK')) {
+  if (upperAction.includes('LAUNCH') || upperAction.includes('STATIC FIRE') || upperAction.includes('TEST')) {
     return RelationshipType.COMMUNICATION;
   }
   
