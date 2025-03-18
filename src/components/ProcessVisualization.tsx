@@ -1,4 +1,3 @@
-
 import { useRef, useEffect, useState } from 'react';
 import { Entity, Relationship, ProcessData, EntityType } from '@/types/processTypes';
 import { 
@@ -35,17 +34,14 @@ const ProcessVisualization = ({
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
   const [positions, setPositions] = useState(new Map<string, {x: number, y: number}>());
 
-  // Calculate visualizations when process data changes
   useEffect(() => {
     if (!processData || !containerRef.current) return;
     
-    // Update container dimensions
     const container = containerRef.current;
     const width = container.clientWidth;
     const height = container.clientHeight;
     setSize({ width, height });
     
-    // Calculate entity positions
     const calculatedPositions = calculateEntityPositions(
       processData.entities, 
       processData.relationships, 
@@ -54,11 +50,9 @@ const ProcessVisualization = ({
     );
     setPositions(calculatedPositions);
     
-    // Reset view
     setZoom(1);
     setOffset({ x: 0, y: 0 });
     
-    // Find critical path
     if (highlightCriticalPath) {
       const criticalPath = findCriticalPath(processData.entities, processData.relationships);
       setHighlightedPath(criticalPath);
@@ -67,7 +61,6 @@ const ProcessVisualization = ({
     }
   }, [processData, highlightCriticalPath]);
   
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
@@ -83,13 +76,11 @@ const ProcessVisualization = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Start dragging
   const handleMouseDown = (e: React.MouseEvent) => {
     setDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
   };
   
-  // Handle dragging
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!dragging) return;
     
@@ -104,12 +95,10 @@ const ProcessVisualization = ({
     setDragStart({ x: e.clientX, y: e.clientY });
   };
   
-  // End dragging
   const handleMouseUp = () => {
     setDragging(false);
   };
   
-  // Handle zooming
   const handleZoom = (factor: number) => {
     setZoom(prevZoom => {
       const newZoom = prevZoom * factor;
@@ -117,12 +106,10 @@ const ProcessVisualization = ({
     });
   };
   
-  // Handle node hover
   const handleNodeHover = (entityId: string, isEntering: boolean) => {
     const svgElement = svgRef.current;
     if (!svgElement) return;
     
-    // Highlight connected relationships
     processData.relationships.forEach(rel => {
       if (rel.source === entityId || rel.target === entityId) {
         const edgeElement = svgElement.querySelector(`#edge-${rel.id}`);
@@ -146,7 +133,6 @@ const ProcessVisualization = ({
       }
     });
     
-    // Highlight the node
     const nodeElement = svgElement.querySelector(`#node-${entityId}`);
     if (nodeElement) {
       if (isEntering) {
@@ -157,14 +143,12 @@ const ProcessVisualization = ({
     }
   };
   
-  // Reset view
   const resetView = () => {
     setZoom(1);
     setOffset({ x: 0, y: 0 });
     toast.info('View reset');
   };
   
-  // Export as SVG
   const exportSVG = () => {
     if (!svgRef.current) return;
     
@@ -183,14 +167,10 @@ const ProcessVisualization = ({
     toast.success('SVG exported successfully');
   };
   
-  // Share visualization
   const shareVisualization = () => {
-    // This would typically integrate with a sharing service
-    // For now, just show a success message
     toast.success('Sharing feature coming soon!');
   };
   
-  // Draw nodes and edges
   const renderEntities = () => {
     if (!processData?.entities || !positions || positions.size === 0) return null;
     
@@ -247,23 +227,19 @@ const ProcessVisualization = ({
       
       if (!source || !target) return null;
       
-      // Calculate path
       const dx = target.x - source.x;
       const dy = target.y - source.y;
       const angle = Math.atan2(dy, dx) * 180 / Math.PI;
       
-      // Determine if this relationship is part of the critical path
       const isHighlighted = 
         highlightedPath.includes(rel.source) && 
         highlightedPath.includes(rel.target) &&
         highlightedPath.indexOf(rel.target) === highlightedPath.indexOf(rel.source) + 1;
       
-      // Arrow settings
       const arrowSize = 12;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const nodeRadius = 30; // Approx radius of node
+      const nodeRadius = 30;
       
-      // Adjust start/end points to be on the node edge
       const startRatio = nodeRadius / distance;
       const endRatio = 1 - (nodeRadius / distance);
       
@@ -278,6 +254,7 @@ const ProcessVisualization = ({
             id={`edge-${rel.id}`}
             d={`M${startX},${startY} L${endX},${endY}`}
             className={`edge ${isHighlighted ? 'edge-highlight' : ''}`}
+            style={isHighlighted ? { strokeDasharray: '5,5' } : undefined}
             markerEnd={`url(#arrow-${rel.id})`}
           />
           <defs>

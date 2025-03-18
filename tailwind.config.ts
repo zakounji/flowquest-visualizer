@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -107,8 +106,8 @@ export default {
 					'50%': { transform: 'scale(1.05)', opacity: '0.9' }
 				},
 				'path-dash': {
-					'0%': { 'stroke-dashoffset': '100%' },
-					'100%': { 'stroke-dashoffset': '0%' }
+					'0%': { 'stroke-dashoffset': '10' },
+					'100%': { 'stroke-dashoffset': '0' }
 				},
 			},
 			animation: {
@@ -120,7 +119,12 @@ export default {
 				'scale-out': 'scale-out 0.3s ease-out',
 				'slide-in': 'slide-in 0.4s ease-out',
 				'node-pulse': 'node-pulse 2s ease-in-out infinite',
-				'path-dash': 'path-dash 1.5s ease-in-out',
+				'path-dash': 'path-dash 1.5s ease-in-out infinite',
+			},
+			stroke: {
+				'dasharray': {
+					'5,5': '5,5'
+				}
 			}
 		}
 	},
