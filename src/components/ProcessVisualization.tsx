@@ -1,15 +1,14 @@
+
 import { useRef, useEffect, useState } from 'react';
-import { Entity, Relationship, ProcessData, EntityType } from '@/types/processTypes';
+import { ProcessData } from '@/types/processTypes';
 import { 
-  getNodeShape, 
   findCriticalPath, 
-  calculateEntityPositions, 
-  defaultEntityStyles 
+  calculateEntityPositions
 } from '@/utils/visualizationHelpers';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Download, ZoomIn, ZoomOut, RotateCcw, Share2 } from 'lucide-react';
+import ProcessGraph from './visualization/ProcessGraph';
+import VisualizationControls from './visualization/VisualizationControls';
+import EntityTypeLegend from './visualization/EntityTypeLegend';
 
 interface ProcessVisualizationProps {
   processData: ProcessData;
@@ -24,7 +23,6 @@ const ProcessVisualization = ({
   animateFlows = true,
   highlightCriticalPath = true,
 }: ProcessVisualizationProps) => {
-  const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [zoom, setZoom] = useState(1);
@@ -107,7 +105,7 @@ const ProcessVisualization = ({
   };
   
   const handleNodeHover = (entityId: string, isEntering: boolean) => {
-    const svgElement = svgRef.current;
+    const svgElement = containerRef.current?.querySelector('svg');
     if (!svgElement) return;
     
     processData.relationships.forEach(rel => {
@@ -150,9 +148,9 @@ const ProcessVisualization = ({
   };
   
   const exportSVG = () => {
-    if (!svgRef.current) return;
+    const svgElement = containerRef.current?.querySelector('svg');
+    if (!svgElement) return;
     
-    const svgElement = svgRef.current;
     const svgData = new XMLSerializer().serializeToString(svgElement);
     const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const svgUrl = URL.createObjectURL(svgBlob);
@@ -170,113 +168,6 @@ const ProcessVisualization = ({
   const shareVisualization = () => {
     toast.success('Sharing feature coming soon!');
   };
-  
-  const renderEntities = () => {
-    if (!processData?.entities || !positions || positions.size === 0) return null;
-    
-    return processData.entities.map(entity => {
-      const pos = positions.get(entity.id);
-      if (!pos) return null;
-      
-      const nodeSize = 60;
-      const x = pos.x;
-      const y = pos.y;
-      const shape = getNodeShape(entity, nodeSize);
-      const isHighlighted = highlightedPath.includes(entity.id);
-      const entityStyle = defaultEntityStyles[entity.type];
-      
-      return (
-        <g 
-          key={`entity-${entity.id}`}
-          transform={`translate(${x - nodeSize/2}, ${y - nodeSize/2})`}
-          onMouseEnter={() => handleNodeHover(entity.id, true)}
-          onMouseLeave={() => handleNodeHover(entity.id, false)}
-          className="cursor-pointer transition-transform duration-300 ease-in-out"
-          style={{ transform: `scale(${isHighlighted ? 1.05 : 1})` }}
-        >
-          <path
-            id={`node-${entity.id}`}
-            d={shape}
-            className={`node ${isHighlighted ? 'node-highlight' : ''}`}
-            style={{ stroke: entityStyle.color }}
-          />
-          {showLabels && (
-            <text
-              x={nodeSize / 2}
-              y={nodeSize / 2}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              className="node-text"
-            >
-              {entity.name.length > 15 
-                ? entity.name.substring(0, 12) + '...' 
-                : entity.name}
-            </text>
-          )}
-        </g>
-      );
-    });
-  };
-  
-  const renderRelationships = () => {
-    if (!processData?.relationships || !positions || positions.size === 0) return null;
-    
-    return processData.relationships.map(rel => {
-      const source = positions.get(rel.source);
-      const target = positions.get(rel.target);
-      
-      if (!source || !target) return null;
-      
-      const dx = target.x - source.x;
-      const dy = target.y - source.y;
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      
-      const isHighlighted = 
-        highlightedPath.includes(rel.source) && 
-        highlightedPath.includes(rel.target) &&
-        highlightedPath.indexOf(rel.target) === highlightedPath.indexOf(rel.source) + 1;
-      
-      const arrowSize = 12;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const nodeRadius = 30;
-      
-      const startRatio = nodeRadius / distance;
-      const endRatio = 1 - (nodeRadius / distance);
-      
-      const startX = source.x + dx * startRatio;
-      const startY = source.y + dy * startRatio;
-      const endX = source.x + dx * endRatio;
-      const endY = source.y + dy * endRatio;
-      
-      return (
-        <g key={`relationship-${rel.id}`} className="transition-opacity duration-300">
-          <path
-            id={`edge-${rel.id}`}
-            d={`M${startX},${startY} L${endX},${endY}`}
-            className={`edge ${isHighlighted ? 'edge-highlight' : ''}`}
-            style={isHighlighted ? { strokeDasharray: '5,5' } : undefined}
-            markerEnd={`url(#arrow-${rel.id})`}
-          />
-          <defs>
-            <marker
-              id={`arrow-${rel.id}`}
-              viewBox="0 0 10 10"
-              refX="5"
-              refY="5"
-              markerWidth={arrowSize}
-              markerHeight={arrowSize}
-              orient={`auto-start-reverse`}
-            >
-              <path
-                d="M 0 0 L 10 5 L 0 10 z"
-                className={`edge-arrow ${isHighlighted ? 'edge-arrow-highlight' : ''}`}
-              />
-            </marker>
-          </defs>
-        </g>
-      );
-    });
-  };
 
   return (
     <div 
@@ -285,60 +176,29 @@ const ProcessVisualization = ({
     >
       {processData && processData.entities.length > 0 ? (
         <>
-          <svg
-            ref={svgRef}
-            width={size.width}
-            height={size.height}
-            className="cursor-grab select-none"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          >
-            <g transform={`translate(${offset.x}, ${offset.y}) scale(${zoom})`}>
-              {renderRelationships()}
-              {renderEntities()}
-            </g>
-          </svg>
+          <ProcessGraph
+            entities={processData.entities}
+            relationships={processData.relationships}
+            positions={positions}
+            highlightedPath={highlightedPath}
+            showLabels={showLabels}
+            zoom={zoom}
+            offset={offset}
+            onDragStart={handleMouseDown}
+            onDragMove={handleMouseMove}
+            onDragEnd={handleMouseUp}
+            onNodeHover={handleNodeHover}
+          />
           
-          <div className="absolute top-4 right-4 flex flex-col gap-2">
-            <Card className="glass-panel p-2 flex flex-col gap-2">
-              <Button variant="ghost" size="icon" onClick={() => handleZoom(1.2)} title="Zoom In">
-                <ZoomIn size={16} />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => handleZoom(0.8)} title="Zoom Out">
-                <ZoomOut size={16} />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={resetView} title="Reset View">
-                <RotateCcw size={16} />
-              </Button>
-            </Card>
-            
-            <Card className="glass-panel p-2 flex flex-col gap-2 mt-2">
-              <Button variant="ghost" size="icon" onClick={exportSVG} title="Export SVG">
-                <Download size={16} />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={shareVisualization} title="Share">
-                <Share2 size={16} />
-              </Button>
-            </Card>
-          </div>
+          <VisualizationControls
+            onZoomIn={() => handleZoom(1.2)}
+            onZoomOut={() => handleZoom(0.8)}
+            onReset={resetView}
+            onExport={exportSVG}
+            onShare={shareVisualization}
+          />
           
-          <div className="absolute bottom-4 left-4 right-4">
-            <Card className="glass-panel p-2 text-xs">
-              <div className="flex flex-wrap gap-3">
-                {Object.values(EntityType).map(type => (
-                  <div key={type} className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: defaultEntityStyles[type].color }}
-                    />
-                    <span>{type.charAt(0) + type.slice(1).toLowerCase()}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+          <EntityTypeLegend />
         </>
       ) : (
         <div className="flex h-full items-center justify-center">
