@@ -1,4 +1,4 @@
-import { Entity, EntityType, Relationship, EntityStyleMapping } from '../types/processTypes';
+import { Entity, EntityType, Relationship, EntityStyleMapping, RelationshipType } from '../types/processTypes';
 
 export const defaultEntityStyles: EntityStyleMapping = {
   [EntityType.TASK]: {

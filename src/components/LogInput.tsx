@@ -25,14 +25,23 @@ const LogInput = ({ onSubmit, disabled }: LogInputProps) => {
   };
 
   const loadSampleData = () => {
-    const sampleLogText = `2023-01-01T10:15:00 USER_001 SUBMIT_FORM {"formId": "F123", "fields": 5}
-2023-01-01T10:15:05 FORM_SYSTEM VALIDATE_FORM {"formId": "F123", "valid": true}
-2023-01-01T10:15:10 FORM_SYSTEM CREATE_TASK {"taskId": "T456", "formId": "F123"}
-2023-01-01T10:15:15 APPROVAL_TASK ASSIGN {"taskId": "T456", "assignee": "ADMIN_USER"}
-2023-01-01T10:20:00 NOTIFICATION_SERVICE SEND_NOTIFICATION {"recipient": "ADMIN_USER", "taskId": "T456"}
-2023-01-01T10:30:00 ADMIN_USER REVIEW_TASK {"taskId": "T456", "decision": "approved"}
-2023-01-01T10:30:10 NOTIFICATION_SERVICE SEND_CONFIRMATION {"recipient": "USER_001", "taskId": "T456"}
-2023-01-01T10:35:00 USER_001 VIEW_RESULT {"taskId": "T456"}`;
+    const sampleLogText = `15 Jan: S28 moved to orbital launch mount at Pad A for integration testing (NSF)
+18 Jan: B9 booster undergoes cryo testing at suborbital pad (RGV photos)
+20 Jan: S28 and B9 fully stacked! at launch complex A preparing for flight (Sentinel)
+22 Jan: Raptor engines installed on S28 at Highbay for the first time
+25 Jan: Heat shield tiles replaced on S28 at refurbishment area after damage assessment (NSF)
+27 Jan: B9 moved back to orbital launch mount at Pad A for final preparations
+30 Jan: S28 and B9 conduct static fire test at launch complex A with all engines (SG photos)
+02 Feb: S28 and B9 destacked at launch complex A for additional work
+05 Feb: S28 transported to Highbay from Pad A for repairs
+07 Feb: S28 heat shield undergoes inspection at maintenance bay showing progress (LP Sentinel)
+10 Feb: Additional Raptor engines delivered to Highbay for S28 integration
+12 Feb: B9 grid fins tested at Pad B for mechanical functionality
+15 Feb: S28 moved back to orbital launch mount at Pad A after repairs completed
+18 Feb: S28 and B9 fully stacked again! at launch complex A ready for launch attempt
+20 Feb: Propellant loading test conducted at launch complex A with both vehicles (NSF)
+23 Feb: Launch attempt scrubbed at T-40s at launch complex A due to valve issue
+25 Feb: S28 and B9 successfully launch! from Pad A reaching orbital velocity (multiple sources)`;
     
     setLogText(sampleLogText);
     toast.info('Sample data loaded');
@@ -71,14 +80,14 @@ const LogInput = ({ onSubmit, disabled }: LogInputProps) => {
             </div>
           </div>
           <Textarea
-            placeholder="Paste your event log here in the format: [timestamp] [component] [action] [details]"
+            placeholder="Paste your event log here in the format: [DD MMM: entity action at location (source)]"
             className="font-mono text-sm min-h-[200px] resize-y"
             value={logText}
             onChange={(e) => setLogText(e.target.value)}
             disabled={disabled}
           />
           <div className="text-xs text-muted-foreground">
-            Format: timestamp component action [JSON details]
+            Format: DD MMM: entity action at location (optional source)
           </div>
         </div>
       </CardContent>
