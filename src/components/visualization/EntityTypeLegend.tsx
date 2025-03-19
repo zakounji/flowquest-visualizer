@@ -10,7 +10,7 @@ const EntityTypeLegend = () => {
   );
 
   return (
-    <div className="absolute bottom-4 left-4 right-4">
+    <div className="absolute bottom-4 left-4 right-4 z-10">
       <Card className="glass-panel p-2 text-xs">
         <div className="flex flex-wrap gap-3">
           {entityTypes.map(type => (
