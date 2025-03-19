@@ -17,7 +17,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ProcessData, Entity, Relationship, EntityType } from '@/types/processTypes';
-import { defaultEntityStyles } from '@/utils/visualizationHelpers';
+import { enhancedEntityStyles } from '@/utils/visualizationHelpers';
 import ProcessNode from './nodes/ProcessNode';
 import ProcessEdge from './edges/ProcessEdge';
 
@@ -48,7 +48,7 @@ const nodeColor = (node: Node) => {
   const entity = node.data?.entity;
   if (!entity) return '#94a3b8';
   
-  const style = defaultEntityStyles[entity.type] || defaultEntityStyles[EntityType.TASK];
+  const style = enhancedEntityStyles[entity.type] || enhancedEntityStyles[EntityType.TASK];
   return style.color;
 };
 
@@ -86,7 +86,7 @@ const ProcessFlowInner = ({
 
     // Create nodes from entities
     const flowNodes: Node[] = processData.entities.map((entity, index) => {
-      const entityStyle = defaultEntityStyles[entity.type] || defaultEntityStyles[EntityType.TASK];
+      const entityStyle = enhancedEntityStyles[entity.type] || enhancedEntityStyles[EntityType.TASK];
       const isHighlighted = highlightedPath.includes(entity.id);
       
       // Position nodes in a circular layout if no positioning is provided
