@@ -21,12 +21,17 @@ const ProcessVisualization = ({
   animateFlows = true,
   highlightCriticalPath = true,
 }: ProcessVisualizationProps) => {
+  // State variables
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [currentAnimationStep, setCurrentAnimationStep] = useState(-1);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showDetails, setShowDetails] = useState(true);
+  const [showMinimap, setShowMinimap] = useState(false);
+  
+  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const animationTimerRef = useRef<number | null>(null);
   const flowRef = useRef<any>(null);
@@ -55,6 +60,25 @@ const ProcessVisualization = ({
   
   const shareVisualization = () => {
     toast.success('Sharing feature coming soon!');
+  };
+
+  const focusOnSelection = () => {
+    if (flowRef.current && selectedEntity) {
+      flowRef.current.fitView({ 
+        padding: 0.5, 
+        duration: 800, 
+        nodes: [{ id: selectedEntity.id }] 
+      });
+      toast.info('Focused on selected entity');
+    } else {
+      toast.info('No entity selected');
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedEntity(null);
+    setIsDetailViewOpen(false);
+    toast.info('Selection cleared');
   };
 
   const handleNodeClick = useCallback((entity: Entity) => {
@@ -92,6 +116,7 @@ const ProcessVisualization = ({
               animationTimerRef.current = null;
             }
             setIsAnimating(false);
+            toast.info('Animation complete');
             return -1;
           }
           return nextStep;
@@ -123,6 +148,7 @@ const ProcessVisualization = ({
         (containerRef.current as any).msRequestFullscreen();
       }
       setIsFullscreen(true);
+      toast.info('Entered fullscreen mode');
     } else {
       // Exit fullscreen
       if (document.exitFullscreen) {
@@ -133,8 +159,21 @@ const ProcessVisualization = ({
         (document as any).msExitFullscreen();
       }
       setIsFullscreen(false);
+      toast.info('Exited fullscreen mode');
     }
   }, [isFullscreen]);
+
+  // Toggle details visibility
+  const toggleDetails = useCallback(() => {
+    setShowDetails(prev => !prev);
+    toast.info(`${showDetails ? 'Hiding' : 'Showing'} details`);
+  }, [showDetails]);
+
+  // Toggle minimap visibility
+  const toggleMinimap = useCallback(() => {
+    setShowMinimap(prev => !prev);
+    toast.info(`${showMinimap ? 'Hiding' : 'Showing'} minimap`);
+  }, [showMinimap]);
 
   // Listen for fullscreen change events
   useEffect(() => {
@@ -165,12 +204,13 @@ const ProcessVisualization = ({
           <ProcessFlowVisualization
             processData={processData}
             highlightedPath={highlightedPath}
-            showLabels={showLabels}
+            showLabels={showLabels && showDetails}
             animateFlows={animateFlows}
             onNodeClick={handleNodeClick}
             currentAnimationStep={currentAnimationStep}
             isAnimating={isAnimating}
             flowRef={flowRef}
+            showMinimap={showMinimap}
           />
           
           <VisualizationControls
@@ -181,11 +221,17 @@ const ProcessVisualization = ({
             onShare={shareVisualization}
             onToggleAnimation={toggleAnimation}
             onToggleFullscreen={toggleFullscreen}
+            onToggleDetails={toggleDetails}
+            onFocusSelection={focusOnSelection}
+            onClearSelection={clearSelection}
+            onToggleMinimap={toggleMinimap}
             isAnimating={isAnimating}
             isFullscreen={isFullscreen}
+            showDetails={showDetails}
+            showMinimap={showMinimap}
           />
           
-          <EntityTypeLegend />
+          {showDetails && <EntityTypeLegend />}
           
           <EntityDetailView
             entity={selectedEntity}

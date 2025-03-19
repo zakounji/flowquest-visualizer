@@ -12,7 +12,8 @@ import {
   ConnectionLineType,
   Panel,
   useReactFlow,
-  ReactFlowProvider
+  ReactFlowProvider,
+  MiniMap
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ProcessData, Entity, Relationship, EntityType } from '@/types/processTypes';
@@ -29,6 +30,7 @@ interface ProcessFlowVisualizationProps {
   currentAnimationStep: number;
   isAnimating: boolean;
   flowRef?: React.MutableRefObject<any>;
+  showMinimap?: boolean;
 }
 
 // Define the node types for React Flow
@@ -41,6 +43,15 @@ const edgeTypes = {
   processEdge: ProcessEdge,
 };
 
+// Helper function for node class names in minimap
+const nodeColor = (node: Node) => {
+  const entity = node.data?.entity;
+  if (!entity) return '#94a3b8';
+  
+  const style = defaultEntityStyles[entity.type] || defaultEntityStyles[EntityType.TASK];
+  return style.color;
+};
+
 // Inner component that uses the React Flow hooks
 const ProcessFlowInner = ({
   processData,
@@ -50,7 +61,8 @@ const ProcessFlowInner = ({
   onNodeClick,
   currentAnimationStep,
   isAnimating,
-  flowRef
+  flowRef,
+  showMinimap = false
 }: ProcessFlowVisualizationProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -188,9 +200,20 @@ const ProcessFlowInner = ({
       fitView
       attributionPosition="bottom-right"
       onInit={onInit}
+      proOptions={{ hideAttribution: true }}
     >
       <Background color="#f1f5f9" gap={16} size={1} />
       <Controls showInteractive={false} />
+      
+      {showMinimap && (
+        <MiniMap 
+          nodeColor={nodeColor}
+          maskColor="rgba(0, 0, 0, 0.1)"
+          className="glass-panel"
+          zoomable
+          pannable
+        />
+      )}
     </ReactFlow>
   );
 };

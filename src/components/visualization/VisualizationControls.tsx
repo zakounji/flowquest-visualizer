@@ -1,7 +1,27 @@
 
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, RefreshCw, Download, Share2, PlayCircle, StopCircle, Maximize, Minimize } from 'lucide-react';
+import { 
+  ZoomIn, 
+  ZoomOut, 
+  RefreshCw, 
+  Download, 
+  Share2, 
+  PlayCircle, 
+  StopCircle, 
+  Maximize, 
+  Minimize, 
+  Settings, 
+  Eye, 
+  EyeOff, 
+  Filter, 
+  Focus,
+  Map,
+  Trash2,
+  Layers,
+  BookOpen
+} from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 
 interface VisualizationControlsProps {
   onZoomIn: () => void;
@@ -11,8 +31,14 @@ interface VisualizationControlsProps {
   onShare: () => void;
   onToggleAnimation?: () => void;
   onToggleFullscreen?: () => void;
+  onToggleDetails?: () => void;
+  onFocusSelection?: () => void;
+  onClearSelection?: () => void;
+  onToggleMinimap?: () => void;
   isAnimating?: boolean;
   isFullscreen?: boolean;
+  showDetails?: boolean;
+  showMinimap?: boolean;
 }
 
 const VisualizationControls = ({ 
@@ -23,8 +49,14 @@ const VisualizationControls = ({
   onShare,
   onToggleAnimation,
   onToggleFullscreen,
+  onToggleDetails,
+  onFocusSelection,
+  onClearSelection,
+  onToggleMinimap,
   isAnimating = false,
-  isFullscreen = false
+  isFullscreen = false,
+  showDetails = true,
+  showMinimap = false
 }: VisualizationControlsProps) => {
   return (
     <div className="absolute top-4 right-4 z-10">
@@ -64,6 +96,19 @@ const VisualizationControls = ({
                   <p>Reset View</p>
                 </TooltipContent>
               </Tooltip>
+
+              {onFocusSelection && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost" onClick={onFocusSelection} className="h-8 w-8">
+                      <Focus size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p>Focus on Selection</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
               {onToggleFullscreen && (
                 <Tooltip>
@@ -108,6 +153,48 @@ const VisualizationControls = ({
                 </Tooltip>
               )}
               
+              {onToggleDetails && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant={showDetails ? "default" : "ghost"} 
+                      onClick={onToggleDetails} 
+                      className="h-8 w-8"
+                    >
+                      {showDetails ? (
+                        <EyeOff size={16} />
+                      ) : (
+                        <Eye size={16} />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p>{showDetails ? "Hide Details" : "Show Details"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              {onToggleMinimap && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon" 
+                      variant={showMinimap ? "default" : "ghost"} 
+                      onClick={onToggleMinimap} 
+                      className="h-8 w-8"
+                    >
+                      <Map size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p>{showMinimap ? "Hide Minimap" : "Show Minimap"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
+              <Separator className="my-1 bg-white/50" />
+              
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button size="icon" variant="ghost" onClick={onExport} className="h-8 w-8">
@@ -129,6 +216,19 @@ const VisualizationControls = ({
                   <p>Share Visualization</p>
                 </TooltipContent>
               </Tooltip>
+
+              {onClearSelection && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost" onClick={onClearSelection} className="h-8 w-8 text-red-500 hover:text-red-600">
+                      <Trash2 size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p>Clear Selection</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
         </div>
