@@ -1,28 +1,58 @@
 import { Entity, EntityType, Relationship, EntityStyleMapping, RelationshipType } from '../types/processTypes';
+import { interpolateRainbow, interpolateSpectral } from 'd3-scale-chromatic';
 
-export const defaultEntityStyles: EntityStyleMapping = {
+// Enhanced color palette with more vibrant, accessible colors
+export const enhancedEntityStyles: EntityStyleMapping = {
   [EntityType.TASK]: {
     shape: 'rectangle',
-    color: '#3182CE', // Blue
+    color: '#4299E1', // Brighter blue
+    shadowColor: '#2C5282', // Darker blue for shadow
+    gradient: ['#63B3ED', '#3182CE'] // Gradient effect
   },
   [EntityType.ACTOR]: {
     shape: 'circle',
-    color: '#805AD5', // Purple
+    color: '#9F7AEA', // Vibrant purple
+    shadowColor: '#553C9A', // Darker purple for shadow
+    gradient: ['#B794F4', '#805AD5'] // Gradient effect
   },
   [EntityType.SYSTEM]: {
     shape: 'diamond',
-    color: '#38A169', // Green
+    color: '#48BB78', // Vibrant green
+    shadowColor: '#2F855A', // Darker green for shadow
+    gradient: ['#68D391', '#38A169'] // Gradient effect
   },
   [EntityType.EVENT]: {
     shape: 'hexagon',
-    color: '#DD6B20', // Orange
+    color: '#F6AD55', // Vibrant orange
+    shadowColor: '#C05621', // Darker orange for shadow
+    gradient: ['#FBD38D', '#DD6B20'] // Gradient effect
   },
   [EntityType.RESOURCE]: {
     shape: 'rounded-rectangle',
-    color: '#D53F8C', // Pink
+    color: '#ED64A6', // Vibrant pink
+    shadowColor: '#B83280', // Darker pink for shadow
+    gradient: ['#F687B3', '#D53F8C'] // Gradient effect
   },
 };
 
+// Function to render node with enhanced visual effects
+export function getEnhancedNodeShape(entity: Entity, size: number = 80) {
+  const type = entity.type;
+  const style = enhancedEntityStyles[type];
+  const shape = getNodeShape(entity, size);
+  
+  return {
+    path: shape,
+    style: {
+      ...style,
+      filter: 'drop-shadow(3px 3px 5px rgba(0,0,0,0.3))',
+      strokeWidth: 2,
+      stroke: style.shadowColor
+    }
+  };
+}
+
+// The original shape function
 export function getNodeShape(entity: Entity, size: number = 80) {
   const type = entity.type;
   
@@ -72,9 +102,42 @@ export function getNodeShape(entity: Entity, size: number = 80) {
   }
 }
 
+// Generate styles for relationships with improved visual appeal
+export function getRelationshipStyle(relationship: Relationship) {
+  const baseStyles = {
+    [RelationshipType.FLOW]: {
+      strokeWidth: 2,
+      stroke: '#3182CE',
+      strokeDasharray: '',
+      markerEnd: 'url(#arrowhead)'
+    },
+    [RelationshipType.COMMUNICATION]: {
+      strokeWidth: 2,
+      stroke: '#805AD5',
+      strokeDasharray: '5,5',
+      markerEnd: 'url(#arrowhead)'
+    },
+    [RelationshipType.DEPENDENCY]: {
+      strokeWidth: 2,
+      stroke: '#DD6B20',
+      strokeDasharray: '',
+      markerEnd: 'url(#diamond)'
+    }
+  };
+
+  // Apply different styles based on frequency
+  const frequencyMultiplier = Math.min(relationship.metrics.frequency, 3) / 2;
+  
+  return {
+    ...baseStyles[relationship.type],
+    strokeWidth: baseStyles[relationship.type].strokeWidth * frequencyMultiplier,
+    opacity: 0.7 + (frequencyMultiplier * 0.1)
+  };
+}
+
+// Enhanced critical path visualization
 export function findCriticalPath(entities: Entity[], relationships: Relationship[]): string[] {
-  // Simplified algorithm to find the critical path:
-  // For this example, we'll consider the path with the highest frequency sum
+  // Existing implementation...
   
   // Create adjacency list
   const adjacencyList = new Map<string, {target: string, frequency: number}[]>();
@@ -169,30 +232,94 @@ export function findCriticalPath(entities: Entity[], relationships: Relationship
     : [];
 }
 
-export function calculateEntityPositions(
+// Improved layout algorithm for better spacing and organization
+export function calculateEnhancedEntityPositions(
   entities: Entity[], 
   relationships: Relationship[], 
   width: number, 
   height: number
 ) {
-  // Simple force-directed layout simulation
-  // In a real implementation, use a proper force layout library
+  // Implement a layered layout approach for processes
+
+  // 1. Identify process layers (distance from start)
+  const layers = new Map<string, number>();
+  const criticalPath = findCriticalPath(entities, relationships);
   
-  // Initialize positions randomly
-  const positions = new Map<string, {x: number, y: number}>();
-  entities.forEach(entity => {
-    positions.set(entity.id, {
-      x: Math.random() * (width * 0.8) + (width * 0.1),
-      y: Math.random() * (height * 0.8) + (height * 0.1)
-    });
+  // Initialize all entities with a large layer number
+  entities.forEach(entity => layers.set(entity.id, Infinity));
+  
+  // Assign layer 0 to start nodes
+  const startNodes = entities.filter(entity => {
+    return !relationships.some(rel => rel.target === entity.id);
   });
   
-  // Run a few iterations of force-directed layout
-  const iterations = 50;
-  const k = Math.sqrt(width * height / entities.length) * 0.8;
+  startNodes.forEach(entity => layers.set(entity.id, 0));
+  
+  // Propagate layer numbers
+  let changed = true;
+  while (changed) {
+    changed = false;
+    relationships.forEach(rel => {
+      const sourceLayer = layers.get(rel.source);
+      const targetLayer = layers.get(rel.target);
+      
+      if (sourceLayer !== undefined && targetLayer !== undefined) {
+        const newLayer = sourceLayer + 1;
+        if (newLayer < targetLayer) {
+          layers.set(rel.target, newLayer);
+          changed = true;
+        }
+      }
+    });
+  }
+  
+  // Count nodes in each layer
+  const layerCounts = new Map<number, number>();
+  const layerNodes = new Map<number, string[]>();
+  
+  entities.forEach(entity => {
+    const layer = layers.get(entity.id) || 0;
+    layerCounts.set(layer, (layerCounts.get(layer) || 0) + 1);
+    
+    if (!layerNodes.has(layer)) {
+      layerNodes.set(layer, []);
+    }
+    layerNodes.get(layer)?.push(entity.id);
+  });
+  
+  const maxLayer = Math.max(...Array.from(layerCounts.keys()));
+  
+  // Assign positions based on layers
+  const positions = new Map<string, {x: number, y: number}>();
+  
+  for (let layer = 0; layer <= maxLayer; layer++) {
+    const nodesInLayer = layerNodes.get(layer) || [];
+    const layerWidth = width * 0.8;
+    const layerHeight = height / (maxLayer + 1);
+    const nodeSpacing = layerWidth / (nodesInLayer.length + 1);
+    
+    nodesInLayer.forEach((nodeId, index) => {
+      const isCritical = criticalPath.includes(nodeId);
+      
+      // Critical path nodes are centered
+      let xPosition = (index + 1) * nodeSpacing + (width * 0.1);
+      if (isCritical) {
+        xPosition = width / 2 + (Math.random() * 0.1 - 0.05) * width;
+      }
+      
+      positions.set(nodeId, {
+        x: xPosition,
+        y: (layer + 0.5) * layerHeight
+      });
+    });
+  }
+  
+  // Apply force-directed adjustments for fine-tuning
+  const iterations = 30;
+  const k = Math.sqrt(width * height / entities.length) * 0.5;
   
   for (let i = 0; i < iterations; i++) {
-    // Calculate repulsive forces between all nodes
+    // Calculate forces...
     const forces = new Map<string, {fx: number, fy: number}>();
     entities.forEach(entity => {
       forces.set(entity.id, {fx: 0, fy: 0});
@@ -235,10 +362,10 @@ export function calculateEntityPositions(
       const forceX = force * dx / distance;
       const forceY = force * dy / distance;
       
-      forces.get(rel.source)!.fx += forceX;
-      forces.get(rel.source)!.fy += forceY;
-      forces.get(rel.target)!.fx -= forceX;
-      forces.get(rel.target)!.fy -= forceY;
+      forces.get(rel.source)!.fx += forceX * 0.2; // Reduced horizontal force
+      forces.get(rel.source)!.fy += forceY * 0.05; // Minimal vertical force
+      forces.get(rel.target)!.fx -= forceX * 0.2;
+      forces.get(rel.target)!.fy -= forceY * 0.05;
     });
     
     // Apply forces with decreasing strength
@@ -246,9 +373,12 @@ export function calculateEntityPositions(
     entities.forEach(entity => {
       const pos = positions.get(entity.id)!;
       const force = forces.get(entity.id)!;
+      const layer = layers.get(entity.id) || 0;
       
       pos.x += force.fx * damping;
-      pos.y += force.fy * damping;
+      // Constrain vertical movement to stay close to layer
+      const layerY = (layer + 0.5) * (height / (maxLayer + 1));
+      pos.y = layerY + (force.fy * damping * 0.2);
       
       // Keep within bounds
       pos.x = Math.max(50, Math.min(width - 50, pos.x));
@@ -259,6 +389,7 @@ export function calculateEntityPositions(
   return positions;
 }
 
+// Enhanced data model with additional visual properties
 export function getSampleProcessData() {
   return {
     entities: [
@@ -266,35 +397,50 @@ export function getSampleProcessData() {
         id: "USER_001",
         type: EntityType.ACTOR,
         name: "User 001",
-        properties: {},
+        properties: {
+          description: "System user initiating the process",
+          icon: "user"
+        },
         metrics: { frequency: 3 }
       },
       {
         id: "FORM_SYSTEM",
         type: EntityType.SYSTEM,
         name: "Form System",
-        properties: {},
+        properties: {
+          description: "System handling form data",
+          icon: "document"
+        },
         metrics: { frequency: 2 }
       },
       {
         id: "APPROVAL_TASK",
         type: EntityType.TASK,
         name: "Approval Task",
-        properties: {},
+        properties: {
+          description: "Task for approving form submission",
+          icon: "check"
+        },
         metrics: { frequency: 1 }
       },
       {
         id: "NOTIFICATION_SERVICE",
         type: EntityType.SYSTEM,
         name: "Notification Service",
-        properties: {},
+        properties: {
+          description: "System sending notifications",
+          icon: "bell"
+        },
         metrics: { frequency: 1 }
       },
       {
         id: "ADMIN_USER",
         type: EntityType.ACTOR,
         name: "Admin User",
-        properties: {},
+        properties: {
+          description: "Administrator user",
+          icon: "user-shield"
+        },
         metrics: { frequency: 1 }
       }
     ],
@@ -304,7 +450,11 @@ export function getSampleProcessData() {
         source: "USER_001",
         target: "FORM_SYSTEM",
         type: RelationshipType.FLOW,
-        properties: { action: "SUBMIT" },
+        properties: { 
+          action: "SUBMIT",
+          label: "Submits Form",
+          animate: true
+        },
         metrics: { frequency: 2 }
       },
       {
@@ -312,7 +462,10 @@ export function getSampleProcessData() {
         source: "FORM_SYSTEM",
         target: "APPROVAL_TASK",
         type: RelationshipType.FLOW,
-        properties: {},
+        properties: {
+          label: "Creates",
+          animate: true
+        },
         metrics: { frequency: 1 }
       },
       {
@@ -320,7 +473,10 @@ export function getSampleProcessData() {
         source: "APPROVAL_TASK",
         target: "NOTIFICATION_SERVICE",
         type: RelationshipType.FLOW,
-        properties: {},
+        properties: {
+          label: "Triggers",
+          animate: true
+        },
         metrics: { frequency: 1 }
       },
       {
@@ -328,7 +484,11 @@ export function getSampleProcessData() {
         source: "NOTIFICATION_SERVICE",
         target: "ADMIN_USER",
         type: RelationshipType.COMMUNICATION,
-        properties: { action: "NOTIFY" },
+        properties: { 
+          action: "NOTIFY",
+          label: "Sends Notification",
+          animate: true
+        },
         metrics: { frequency: 1 }
       },
       {
@@ -336,7 +496,11 @@ export function getSampleProcessData() {
         source: "ADMIN_USER",
         target: "USER_001",
         type: RelationshipType.COMMUNICATION,
-        properties: { action: "RESPOND" },
+        properties: { 
+          action: "RESPOND",
+          label: "Responds To",
+          animate: true
+        },
         metrics: { frequency: 1 }
       }
     ],
@@ -344,7 +508,50 @@ export function getSampleProcessData() {
       startTime: new Date(2023, 0, 1),
       endTime: new Date(2023, 0, 1, 1),
       totalEvents: 5,
-      processName: "Form Submission Process"
+      processName: "Form Submission Process",
+      theme: "light",
+      description: "A visualization of the form submission approval process"
+    },
+    visualSettings: {
+      showLabels: true,
+      showIcons: true,
+      showMetrics: true,
+      animateFlows: true,
+      highlightCriticalPath: true,
+      theme: "light",
+      zoom: 1.0
     }
   };
+}
+
+// Function to create SVG markers for arrows
+export function createSVGMarkers() {
+  return `
+    <defs>
+      <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+              refX="10" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#3182CE" />
+      </marker>
+      <marker id="diamond" markerWidth="12" markerHeight="8" 
+              refX="6" refY="4" orient="auto">
+        <polygon points="0 4, 6 0, 12 4, 6 8" fill="#DD6B20" />
+      </marker>
+      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="3" result="blur" />
+        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+      </filter>
+      <linearGradient id="actorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#B794F4" />
+        <stop offset="100%" stop-color="#805AD5" />
+      </linearGradient>
+      <linearGradient id="systemGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#68D391" />
+        <stop offset="100%" stop-color="#38A169" />
+      </linearGradient>
+      <linearGradient id="taskGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#63B3ED" />
+        <stop offset="100%" stop-color="#3182CE" />
+      </linearGradient>
+    </defs>
+  `;
 }
