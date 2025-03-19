@@ -26,7 +26,10 @@ const ProcessVisualization = ({
   const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
   const [currentAnimationStep, setCurrentAnimationStep] = useState(-1);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const animationTimerRef = useRef<number | null>(null);
+  const flowRef = useRef<any>(null);
   
   useEffect(() => {
     if (!processData || !highlightCriticalPath) {
@@ -39,7 +42,9 @@ const ProcessVisualization = ({
   }, [processData, highlightCriticalPath]);
   
   const resetView = () => {
-    // The resetView functionality is now handled in ProcessFlowVisualization
+    if (flowRef.current) {
+      flowRef.current.fitView({ padding: 0.2, duration: 800 });
+    }
     toast.info('View reset');
   };
   
@@ -104,8 +109,57 @@ const ProcessVisualization = ({
     };
   }, []);
 
+  // Handle fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return;
+
+    if (!isFullscreen) {
+      // Enter fullscreen
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen();
+      } else if ((containerRef.current as any).webkitRequestFullscreen) {
+        (containerRef.current as any).webkitRequestFullscreen();
+      } else if ((containerRef.current as any).msRequestFullscreen) {
+        (containerRef.current as any).msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      } else if ((document as any).msExitFullscreen) {
+        (document as any).msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  }, [isFullscreen]);
+
+  // Listen for fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
   return (
-    <div className="h-full w-full relative overflow-hidden bg-white/30 backdrop-blur-sm rounded-lg shadow-md border border-white/20 animate-fade-in">
+    <div 
+      ref={containerRef}
+      className={`h-full w-full relative overflow-hidden bg-white/30 backdrop-blur-sm rounded-lg shadow-md border border-white/20 animate-fade-in ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}
+    >
       {processData && processData.entities.length > 0 ? (
         <>
           <ProcessFlowVisualization
@@ -116,16 +170,19 @@ const ProcessVisualization = ({
             onNodeClick={handleNodeClick}
             currentAnimationStep={currentAnimationStep}
             isAnimating={isAnimating}
+            flowRef={flowRef}
           />
           
           <VisualizationControls
-            onZoomIn={() => {/* Handled internally in ProcessFlowVisualization */}}
-            onZoomOut={() => {/* Handled internally in ProcessFlowVisualization */}}
+            onZoomIn={() => flowRef.current?.zoomIn?.()}
+            onZoomOut={() => flowRef.current?.zoomOut?.()}
             onReset={resetView}
             onExport={exportSVG}
             onShare={shareVisualization}
             onToggleAnimation={toggleAnimation}
+            onToggleFullscreen={toggleFullscreen}
             isAnimating={isAnimating}
+            isFullscreen={isFullscreen}
           />
           
           <EntityTypeLegend />

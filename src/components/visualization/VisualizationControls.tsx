@@ -1,6 +1,6 @@
 
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, RefreshCw, Download, Share2, PlayCircle, StopCircle } from 'lucide-react';
+import { ZoomIn, ZoomOut, RefreshCw, Download, Share2, PlayCircle, StopCircle, Maximize, Minimize } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface VisualizationControlsProps {
@@ -10,7 +10,9 @@ interface VisualizationControlsProps {
   onExport: () => void;
   onShare: () => void;
   onToggleAnimation?: () => void;
+  onToggleFullscreen?: () => void;
   isAnimating?: boolean;
+  isFullscreen?: boolean;
 }
 
 const VisualizationControls = ({ 
@@ -20,7 +22,9 @@ const VisualizationControls = ({
   onExport, 
   onShare,
   onToggleAnimation,
-  isAnimating = false
+  onToggleFullscreen,
+  isAnimating = false,
+  isFullscreen = false
 }: VisualizationControlsProps) => {
   return (
     <div className="absolute top-4 right-4 z-10">
@@ -60,6 +64,23 @@ const VisualizationControls = ({
                   <p>Reset View</p>
                 </TooltipContent>
               </Tooltip>
+
+              {onToggleFullscreen && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost" onClick={onToggleFullscreen} className="h-8 w-8">
+                      {isFullscreen ? (
+                        <Minimize size={16} />
+                      ) : (
+                        <Maximize size={16} />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    <p>{isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </div>
           </div>
           

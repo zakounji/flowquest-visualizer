@@ -28,6 +28,7 @@ interface ProcessFlowVisualizationProps {
   onNodeClick: (entity: Entity) => void;
   currentAnimationStep: number;
   isAnimating: boolean;
+  flowRef?: React.MutableRefObject<any>;
 }
 
 // Define the node types for React Flow
@@ -48,12 +49,20 @@ const ProcessFlowInner = ({
   animateFlows,
   onNodeClick,
   currentAnimationStep,
-  isAnimating
+  isAnimating,
+  flowRef
 }: ProcessFlowVisualizationProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const reactFlowInstance = useReactFlow();
   const d3Container = useRef<SVGSVGElement | null>(null);
+  
+  // Expose the reactFlowInstance methods via the flowRef
+  useEffect(() => {
+    if (flowRef && reactFlowInstance) {
+      flowRef.current = reactFlowInstance;
+    }
+  }, [reactFlowInstance, flowRef]);
   
   // Transform process data into React Flow nodes and edges
   useEffect(() => {
@@ -120,6 +129,43 @@ const ProcessFlowInner = ({
     setNodes(flowNodes);
     setEdges(flowEdges);
   }, [processData, highlightedPath, showLabels, animateFlows, setNodes, setEdges, onNodeClick, currentAnimationStep, isAnimating]);
+
+  // Camera tracking effect for animation
+  useEffect(() => {
+    if (!reactFlowInstance || currentAnimationStep < 0 || !isAnimating || !processData) return;
+    
+    // Find the current relationship being animated
+    const currentRelationship = processData.relationships[currentAnimationStep];
+    if (!currentRelationship) return;
+    
+    // Find the source and target nodes
+    const sourceNode = nodes.find(node => node.id === currentRelationship.source);
+    const targetNode = nodes.find(node => node.id === currentRelationship.target);
+    
+    if (!sourceNode || !targetNode) return;
+    
+    // Calculate the center point between source and target
+    const centerX = (sourceNode.position.x + targetNode.position.x) / 2;
+    const centerY = (sourceNode.position.y + targetNode.position.y) / 2;
+    
+    // Calculate the zoom level based on the distance between nodes
+    const dx = sourceNode.position.x - targetNode.position.x;
+    const dy = sourceNode.position.y - targetNode.position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Adjust zoom based on distance (closer for longer distances)
+    const zoom = Math.max(0.8, Math.min(1.5, 600 / distance));
+    
+    // Animate the camera to focus on the current relationship
+    reactFlowInstance.setViewport(
+      { 
+        x: window.innerWidth / 2 - centerX * zoom, 
+        y: window.innerHeight / 2 - centerY * zoom, 
+        zoom 
+      }, 
+      { duration: 800 }
+    );
+  }, [currentAnimationStep, isAnimating, nodes, reactFlowInstance, processData]);
 
   const onInit = useCallback((instance) => {
     setTimeout(() => {
