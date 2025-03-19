@@ -11,7 +11,8 @@ import {
   Edge,
   ConnectionLineType,
   Panel,
-  useReactFlow
+  useReactFlow,
+  ReactFlowProvider
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ProcessData, Entity, Relationship, EntityType } from '@/types/processTypes';
@@ -39,7 +40,8 @@ const edgeTypes = {
   processEdge: ProcessEdge,
 };
 
-const ProcessFlowVisualization = ({
+// Inner component that uses the React Flow hooks
+const ProcessFlowInner = ({
   processData,
   highlightedPath,
   showLabels,
@@ -119,30 +121,41 @@ const ProcessFlowVisualization = ({
     setEdges(flowEdges);
   }, [processData, highlightedPath, showLabels, animateFlows, setNodes, setEdges, onNodeClick, currentAnimationStep, isAnimating]);
 
-  const onInit = useCallback((reactFlowInstance) => {
-    reactFlowInstance.fitView({ padding: 0.2 });
+  const onInit = useCallback((instance) => {
+    setTimeout(() => {
+      instance.fitView({ padding: 0.2 });
+    }, 0);
   }, []);
 
   return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      connectionLineType={ConnectionLineType.Bezier}
+      defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+      minZoom={0.2}
+      maxZoom={4}
+      fitView
+      attributionPosition="bottom-right"
+      onInit={onInit}
+    >
+      <Background color="#f1f5f9" gap={16} size={1} />
+      <Controls showInteractive={false} />
+    </ReactFlow>
+  );
+};
+
+// Wrapper component that provides the React Flow Provider
+const ProcessFlowVisualization = (props: ProcessFlowVisualizationProps) => {
+  return (
     <div className="h-full w-full">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        connectionLineType={ConnectionLineType.Bezier}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        minZoom={0.2}
-        maxZoom={4}
-        fitView
-        attributionPosition="bottom-right"
-        onInit={onInit}
-      >
-        <Background color="#f1f5f9" gap={16} size={1} />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+      <ReactFlowProvider>
+        <ProcessFlowInner {...props} />
+      </ReactFlowProvider>
     </div>
   );
 };
