@@ -1,5 +1,6 @@
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
+import * as d3 from 'd3';
 import {
   ReactFlow,
   Background,
@@ -9,7 +10,8 @@ import {
   Node,
   Edge,
   ConnectionLineType,
-  Panel
+  Panel,
+  useReactFlow
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ProcessData, Entity, Relationship, EntityType } from '@/types/processTypes';
@@ -22,6 +24,9 @@ interface ProcessFlowVisualizationProps {
   highlightedPath: string[];
   showLabels: boolean;
   animateFlows: boolean;
+  onNodeClick: (entity: Entity) => void;
+  currentAnimationStep: number;
+  isAnimating: boolean;
 }
 
 // Define the node types for React Flow
@@ -38,10 +43,15 @@ const ProcessFlowVisualization = ({
   processData,
   highlightedPath,
   showLabels,
-  animateFlows
+  animateFlows,
+  onNodeClick,
+  currentAnimationStep,
+  isAnimating
 }: ProcessFlowVisualizationProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const reactFlowInstance = useReactFlow();
+  const d3Container = useRef<SVGSVGElement | null>(null);
   
   // Transform process data into React Flow nodes and edges
   useEffect(() => {
@@ -71,37 +81,43 @@ const ProcessFlowVisualization = ({
           color: entityStyle.color,
           isHighlighted,
           showLabel: showLabels,
+          onClick: () => onNodeClick(entity),
+          animationStep: currentAnimationStep,
+          isAnimating
         },
       };
     });
 
     // Create edges from relationships
-    const flowEdges: Edge[] = processData.relationships.map((rel) => {
+    const flowEdges: Edge[] = processData.relationships.map((rel, index) => {
       const isHighlighted = 
         highlightedPath.includes(rel.source) && 
         highlightedPath.includes(rel.target) &&
         highlightedPath.indexOf(rel.target) === highlightedPath.indexOf(rel.source) + 1;
+      
+      const isCurrentAnimationStep = index === currentAnimationStep;
       
       return {
         id: rel.id,
         source: rel.source,
         target: rel.target,
         type: 'processEdge',
-        animated: animateFlows && isHighlighted,
+        animated: (animateFlows && isHighlighted) || isCurrentAnimationStep,
         data: {
           relationship: rel,
           isHighlighted,
+          isAnimationStep: isCurrentAnimationStep
         },
         style: {
-          stroke: isHighlighted ? '#8B5CF6' : '#94a3b8',
-          strokeWidth: isHighlighted ? 3 : 2,
+          stroke: isCurrentAnimationStep ? '#ff6b6b' : isHighlighted ? '#8B5CF6' : '#94a3b8',
+          strokeWidth: isCurrentAnimationStep ? 4 : isHighlighted ? 3 : 2,
         },
       };
     });
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [processData, highlightedPath, showLabels, animateFlows, setNodes, setEdges]);
+  }, [processData, highlightedPath, showLabels, animateFlows, setNodes, setEdges, onNodeClick, currentAnimationStep, isAnimating]);
 
   const onInit = useCallback((reactFlowInstance) => {
     reactFlowInstance.fitView({ padding: 0.2 });

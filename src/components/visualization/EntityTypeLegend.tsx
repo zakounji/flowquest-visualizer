@@ -17,7 +17,7 @@ const EntityTypeLegend = () => {
             <div key={type} className="flex items-center gap-2">
               <div 
                 className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: defaultEntityStyles[type].color }}
+                style={{ backgroundColor: defaultEntityStyles[type]?.color || '#cccccc' }}
               />
               <span>{type.charAt(0) + type.slice(1).toLowerCase()}</span>
             </div>

@@ -1,11 +1,12 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { ProcessData } from '@/types/processTypes';
+import { ProcessData, Entity } from '@/types/processTypes';
 import { findCriticalPath } from '@/utils/visualizationHelpers';
 import ProcessFlowVisualization from './visualization/ProcessFlowVisualization';
 import VisualizationControls from './visualization/VisualizationControls';
 import EntityTypeLegend from './visualization/EntityTypeLegend';
+import EntityDetailView from './visualization/EntityDetailView';
 
 interface ProcessVisualizationProps {
   processData: ProcessData;
@@ -21,6 +22,11 @@ const ProcessVisualization = ({
   highlightCriticalPath = true,
 }: ProcessVisualizationProps) => {
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
+  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [isDetailViewOpen, setIsDetailViewOpen] = useState(false);
+  const [currentAnimationStep, setCurrentAnimationStep] = useState(-1);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationTimerRef = useRef<number | null>(null);
   
   useEffect(() => {
     if (!processData || !highlightCriticalPath) {
@@ -46,6 +52,58 @@ const ProcessVisualization = ({
     toast.success('Sharing feature coming soon!');
   };
 
+  const handleNodeClick = useCallback((entity: Entity) => {
+    setSelectedEntity(entity);
+    setIsDetailViewOpen(true);
+  }, []);
+
+  const handleDetailViewClose = useCallback(() => {
+    setIsDetailViewOpen(false);
+    setSelectedEntity(null);
+  }, []);
+
+  const toggleAnimation = useCallback(() => {
+    if (isAnimating) {
+      // Stop animation
+      if (animationTimerRef.current !== null) {
+        window.clearInterval(animationTimerRef.current);
+        animationTimerRef.current = null;
+      }
+      setIsAnimating(false);
+      setCurrentAnimationStep(-1);
+    } else {
+      // Start animation
+      setIsAnimating(true);
+      setCurrentAnimationStep(0);
+      
+      // Create a timer to advance the animation steps
+      animationTimerRef.current = window.setInterval(() => {
+        setCurrentAnimationStep(prev => {
+          const nextStep = prev + 1;
+          if (processData && nextStep >= processData.relationships.length) {
+            // Animation complete, stop the timer
+            if (animationTimerRef.current !== null) {
+              window.clearInterval(animationTimerRef.current);
+              animationTimerRef.current = null;
+            }
+            setIsAnimating(false);
+            return -1;
+          }
+          return nextStep;
+        });
+      }, 1500); // Advance every 1.5 seconds
+    }
+  }, [isAnimating, processData]);
+
+  // Cleanup animation timer on unmount
+  useEffect(() => {
+    return () => {
+      if (animationTimerRef.current !== null) {
+        window.clearInterval(animationTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="h-full w-full relative overflow-hidden bg-white/30 backdrop-blur-sm rounded-lg shadow-md border border-white/20 animate-fade-in">
       {processData && processData.entities.length > 0 ? (
@@ -55,6 +113,9 @@ const ProcessVisualization = ({
             highlightedPath={highlightedPath}
             showLabels={showLabels}
             animateFlows={animateFlows}
+            onNodeClick={handleNodeClick}
+            currentAnimationStep={currentAnimationStep}
+            isAnimating={isAnimating}
           />
           
           <VisualizationControls
@@ -63,9 +124,19 @@ const ProcessVisualization = ({
             onReset={resetView}
             onExport={exportSVG}
             onShare={shareVisualization}
+            onToggleAnimation={toggleAnimation}
+            isAnimating={isAnimating}
           />
           
           <EntityTypeLegend />
+          
+          <EntityDetailView
+            entity={selectedEntity}
+            relationships={processData.relationships}
+            entities={processData.entities}
+            isOpen={isDetailViewOpen}
+            onClose={handleDetailViewClose}
+          />
         </>
       ) : (
         <div className="flex h-full items-center justify-center">
