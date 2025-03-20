@@ -1,4 +1,3 @@
-
 export enum EntityType {
   START = "START",
   ACTIVITY = "ACTIVITY",
@@ -7,11 +6,17 @@ export enum EntityType {
   SYSTEM = "SYSTEM",
   USER = "USER",
   DATA = "DATA",
-  // Add missing types
+  // SpaceX specific entity types
   ACTOR = "ACTOR",
   TASK = "TASK",
   EVENT = "EVENT",
-  RESOURCE = "RESOURCE"
+  RESOURCE = "RESOURCE",
+  // New SpaceX specific entity types
+  VEHICLE = "VEHICLE",     // Starship, Super Heavy, etc.
+  FACILITY = "FACILITY",   // Launch pad, production facility, etc.
+  COMPONENT = "COMPONENT", // Engines, avionics, etc.
+  TEST = "TEST",           // Static fire, cryo test, etc.
+  MILESTONE = "MILESTONE"  // Critical achievements
 }
 
 export enum RelationshipType {
@@ -20,10 +25,14 @@ export enum RelationshipType {
   DEPENDENCY = "DEPENDENCY",
   ASSOCIATION = "ASSOCIATION",
   TRIGGER = "TRIGGER",
-  // Add missing types
-  TRANSFER = "TRANSFER",
-  USAGE = "USAGE",
-  COMMUNICATION = "COMMUNICATION"
+  // Add SpaceX specific relationship types
+  TRANSFER = "TRANSFER",       // Physical movement of hardware
+  USAGE = "USAGE",             // Component usage in vehicle
+  COMMUNICATION = "COMMUNICATION",
+  // New SpaceX specific relationship types
+  INTEGRATION = "INTEGRATION", // Assembly of components
+  TESTING = "TESTING",         // Test relationship
+  SUPPLY = "SUPPLY"            // Supply chain relationship
 }
 
 export interface Entity {

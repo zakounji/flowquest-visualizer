@@ -79,7 +79,7 @@ export async function parseLogText(logText: string): Promise<ProcessData> {
       if (!entitiesMap.has(location)) {
         entitiesMap.set(location, {
           id: location,
-          type: EntityType.RESOURCE,
+          type: determineLocationType(location),
           name: formatEntityName(location),
           properties: {},
           metrics: { frequency: 0 }
@@ -91,13 +91,14 @@ export async function parseLogText(logText: string): Promise<ProcessData> {
       
       // Create relationship between entity and location
       const relationshipId = `${entityName}-AT-${location}`;
+      const relationshipType = determineRelationshipType(action);
       
       if (!relationshipsMap.has(relationshipId)) {
         relationshipsMap.set(relationshipId, {
           id: relationshipId,
           source: entityName,
           target: location,
-          type: RelationshipType.ASSOCIATION,
+          type: relationshipType,
           properties: { action },
           metrics: { frequency: 0, timestamp: eventTime }
         });
@@ -155,18 +156,42 @@ export async function parseLogText(logText: string): Promise<ProcessData> {
 function determineEntityType(id: string): EntityType {
   const upperID = id.toUpperCase();
   
-  // Check for specific prefixes or patterns in the entity id
-  if (upperID.startsWith('S') && /S\d+/.test(upperID)) {
-    return EntityType.SYSTEM; // Spacecraft/Starship
+  // Check for specific patterns in Starship development
+  if (/^S\d+$/.test(upperID)) {
+    return EntityType.VEHICLE; // Starship vehicles (S20, S24, etc)
   }
-  if (upperID.startsWith('B') && /B\d+/.test(upperID)) {
-    return EntityType.SYSTEM; // Booster
+  if (/^B\d+$/.test(upperID)) {
+    return EntityType.VEHICLE; // Boosters (B4, B7, etc)
   }
-  if (upperID.includes('PAD') || upperID.includes('BAY') || upperID.includes('COMPLEX')) {
-    return EntityType.RESOURCE; // Locations
+  if (/^SN\d+$/.test(upperID)) {
+    return EntityType.VEHICLE; // Old naming for Starships (SN8, SN15, etc)
   }
-  if (upperID.includes('ENGINE') || upperID.includes('RAPTOR')) {
-    return EntityType.RESOURCE; // Components
+  if (/^BN\d+$/.test(upperID)) {
+    return EntityType.VEHICLE; // Old naming for Boosters (BN1, etc)
+  }
+  if (/RAPTOR|ENGINE|RVT\d+/.test(upperID)) {
+    return EntityType.COMPONENT; // Raptor engines
+  }
+  if (/GRID\s*FIN|ELONERONS|THERMAL|SHIELD|TILES|TANK|DOME/.test(upperID)) {
+    return EntityType.COMPONENT; // Vehicle components
+  }
+  if (/STATIC\s*FIRE|TEST|CRYO|WET\s*DRESS|SPIN\s*START/.test(upperID)) {
+    return EntityType.TEST; // Testing activities
+  }
+  if (/LAUNCH|FLIGHT|LANDING|CATCH|STACKING|MATE|DESTACK/.test(upperID)) {
+    return EntityType.EVENT; // Major events
+  }
+  if (/FAA|APPROVAL|ENVIRONMENTAL|LICENSE|MILESTONE/.test(upperID)) {
+    return EntityType.MILESTONE; // Regulatory and program milestones
+  }
+  if (/ELON|MUSK|ENGINEER|TEAM|CREW|SPACEX/.test(upperID)) {
+    return EntityType.ACTOR; // People
+  }
+  if (/PAD\s*[AB]|LAUNCH\s*(MOUNT|TOWER|PAD|SITE)|OLM|OLS|OLT|MECHAZILLA|CHOPSTICK/.test(upperID)) {
+    return EntityType.FACILITY; // Launch facilities
+  }
+  if (/BAY\s*\d|HQ|STARBASE|BOCA\s*CHICA|FACTORY|TENT|HAWTHORNE|McGregor/.test(upperID)) {
+    return EntityType.FACILITY; // Production facilities
   }
   
   // Check for standard prefixes
@@ -186,21 +211,47 @@ function determineEntityType(id: string): EntityType {
     return EntityType.RESOURCE;
   }
   
-  // Default to EVENT for unknown types
-  return EntityType.EVENT;
+  // Default to VEHICLE for Starship-specific logs
+  return EntityType.VEHICLE;
+}
+
+function determineLocationType(location: string): EntityType {
+  const upperLocation = location.toUpperCase();
+  
+  if (/PAD\s*[AB]|LAUNCH\s*(MOUNT|TOWER|PAD|SITE)|OLM|OLS|OLT|SUBORBITAL|ORBITAL|SITE\s*\d/.test(upperLocation)) {
+    return EntityType.FACILITY; // Launch facilities
+  }
+  if (/BAY\s*\d|TENT|HIGH\s*BAY|MID\s*BAY|WIDE\s*BAY|PRODUCTION|FACTORY|STARBASE|BOCA\s*CHICA/.test(upperLocation)) {
+    return EntityType.FACILITY; // Production facilities
+  }
+  if (/TEST\s*STAND|RIG/.test(upperLocation)) {
+    return EntityType.FACILITY; // Test facilities
+  }
+  
+  // Default to RESOURCE for unknown locations
+  return EntityType.RESOURCE;
 }
 
 function determineRelationshipType(action: string): RelationshipType {
   const upperAction = action.toUpperCase();
   
-  if (upperAction.includes('MOVED') || upperAction.includes('TRANSPORTED') || upperAction.includes('DELIVERED')) {
+  if (/MOVED|ROLLED|TRANSPORTED|DELIVERED|RAISED|LIFTED|LOWERED|STACKED/.test(upperAction)) {
     return RelationshipType.TRANSFER;
   }
-  if (upperAction.includes('TESTED') || upperAction.includes('INSTALLED') || upperAction.includes('INTEGRATED')) {
-    return RelationshipType.USAGE;
+  if (/INSTALLED|INTEGRATED|MOUNTED|FITTED|ATTACHED|CONNECTED|ASSEMBLED/.test(upperAction)) {
+    return RelationshipType.INTEGRATION;
   }
-  if (upperAction.includes('LAUNCH') || upperAction.includes('STATIC FIRE') || upperAction.includes('TEST')) {
+  if (/TESTED|FIRING|STARTED|PERFORMED|CONDUCTED|UNDERWENT|COMPLETED/.test(upperAction)) {
+    return RelationshipType.TESTING;
+  }
+  if (/RECEIVED|DELIVERED|SHIPPED|ARRIVED/.test(upperAction)) {
+    return RelationshipType.SUPPLY;
+  }
+  if (/COMMUNICATED|REPORTED|ANNOUNCED|TWEETED|SHARED|CONFIRMED/.test(upperAction)) {
     return RelationshipType.COMMUNICATION;
+  }
+  if (/NEEDS|REQUIRES|DEPENDS|WAITS/.test(upperAction)) {
+    return RelationshipType.DEPENDENCY;
   }
   
   // Default relationship type
