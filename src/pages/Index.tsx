@@ -8,10 +8,12 @@ import ControlPanel from '@/components/ControlPanel';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent } from '@/components/ui/card';
 import { getSampleProcessData } from '@/utils/visualizationHelpers';
+import { Badge } from '@/components/ui/badge';
+import { Sparkles } from 'lucide-react';
 
 const Index = () => {
   const [logText, setLogText] = useState('');
-  const { processData, loading, error, clearData } = useProcessMining(logText);
+  const { processData, loading, error, clearData, useAI, toggleAIParser } = useProcessMining(logText);
   const [visualizationSettings, setVisualizationSettings] = useState({
     showLabels: true,
     animateFlows: true,
@@ -35,8 +37,18 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
       <header className="p-6 border-b bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-medium tracking-tight">Process Mining Visualizer</h1>
-          <p className="text-muted-foreground text-sm mt-1">Transform event logs into interactive process visualizations</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-medium tracking-tight">Process Mining Visualizer</h1>
+              <p className="text-muted-foreground text-sm mt-1">Transform event logs into interactive process visualizations</p>
+            </div>
+            {useAI && (
+              <Badge variant="secondary" className="flex items-center gap-1.5 px-3 py-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Gemini AI Powered</span>
+              </Badge>
+            )}
+          </div>
         </div>
       </header>
 
@@ -54,6 +66,8 @@ const Index = () => {
                 onRefresh={handleRefresh}
                 loading={loading}
                 error={error}
+                useAI={useAI}
+                onToggleAI={toggleAIParser}
               />
             </div>
           </div>

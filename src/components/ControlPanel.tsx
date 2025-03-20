@@ -1,11 +1,12 @@
 
 import { useState } from 'react';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, RefreshCw, Share2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 interface ControlPanelProps {
   onSettingsChange: (settings: {
@@ -13,150 +14,135 @@ interface ControlPanelProps {
     animateFlows: boolean;
     highlightCriticalPath: boolean;
   }) => void;
-  onRefresh?: () => void;
-  onExport?: () => void;
-  onShare?: () => void;
-  loading?: boolean;
-  error?: string | null;
+  onRefresh: () => void;
+  loading: boolean;
+  error: string | null;
+  useAI?: boolean;
+  onToggleAI?: () => boolean;
 }
 
-const ControlPanel = ({ 
-  onSettingsChange, 
-  onRefresh, 
-  onExport, 
-  onShare,
-  loading = false,
-  error = null
+const ControlPanel = ({
+  onSettingsChange,
+  onRefresh,
+  loading,
+  error,
+  useAI = true,
+  onToggleAI
 }: ControlPanelProps) => {
   const [showLabels, setShowLabels] = useState(true);
   const [animateFlows, setAnimateFlows] = useState(true);
   const [highlightCriticalPath, setHighlightCriticalPath] = useState(true);
-  
-  const handleSettingChange = (key: string, value: boolean) => {
-    let newSettings;
-    
-    switch (key) {
-      case 'showLabels':
-        setShowLabels(value);
-        newSettings = { showLabels: value, animateFlows, highlightCriticalPath };
-        break;
-      case 'animateFlows':
-        setAnimateFlows(value);
-        newSettings = { showLabels, animateFlows: value, highlightCriticalPath };
-        break;
-      case 'highlightCriticalPath':
-        setHighlightCriticalPath(value);
-        newSettings = { showLabels, animateFlows, highlightCriticalPath: value };
-        break;
-      default:
-        return;
+
+  const handleShowLabelsChange = (checked: boolean) => {
+    setShowLabels(checked);
+    onSettingsChange({
+      showLabels: checked,
+      animateFlows,
+      highlightCriticalPath
+    });
+  };
+
+  const handleAnimateFlowsChange = (checked: boolean) => {
+    setAnimateFlows(checked);
+    onSettingsChange({
+      showLabels,
+      animateFlows: checked,
+      highlightCriticalPath
+    });
+  };
+
+  const handleHighlightCriticalPathChange = (checked: boolean) => {
+    setHighlightCriticalPath(checked);
+    onSettingsChange({
+      showLabels,
+      animateFlows,
+      highlightCriticalPath: checked
+    });
+  };
+
+  const handleToggleAI = () => {
+    if (onToggleAI) {
+      const newState = onToggleAI();
+      return newState;
     }
-    
-    onSettingsChange(newSettings);
-    toast.info(`${key.replace(/([A-Z])/g, ' $1').replace(/^\w/, c => c.toUpperCase())} ${value ? 'enabled' : 'disabled'}`);
-  };
-  
-  const handleRefresh = () => {
-    if (onRefresh) onRefresh();
-    toast.info('Refreshing visualization');
-  };
-  
-  const handleExport = () => {
-    if (onExport) onExport();
-    else toast.info('Export feature coming soon');
-  };
-  
-  const handleShare = () => {
-    if (onShare) onShare();
-    else toast.info('Share feature coming soon');
+    return useAI;
   };
 
   return (
-    <Card className="backdrop-blur-sm bg-white/80 shadow-md border border-slate-200 animate-fade-in">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Visualization Controls</CardTitle>
+    <Card className="w-full backdrop-blur-sm bg-white/80 shadow-md border border-slate-200 animate-fade-in">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Visualization Settings</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {error && (
-          <div className="mb-4 p-2 bg-destructive/10 text-destructive rounded-md flex items-center gap-2 text-sm">
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
-      
+        
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Switch 
-                id="show-labels" 
-                checked={showLabels}
-                onCheckedChange={(checked) => handleSettingChange('showLabels', checked)}
-                disabled={loading}
-              />
-              <Label htmlFor="show-labels">Show Labels</Label>
-            </div>
+            <Label htmlFor="show-labels" className="flex items-center gap-2">
+              Show Labels
+            </Label>
+            <Switch
+              id="show-labels"
+              checked={showLabels}
+              onCheckedChange={handleShowLabelsChange}
+            />
           </div>
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Switch 
-                id="animate-flows" 
-                checked={animateFlows}
-                onCheckedChange={(checked) => handleSettingChange('animateFlows', checked)}
-                disabled={loading}
-              />
-              <Label htmlFor="animate-flows">Animate Flows</Label>
-            </div>
+            <Label htmlFor="animate-flows" className="flex items-center gap-2">
+              Animate Flows
+            </Label>
+            <Switch
+              id="animate-flows"
+              checked={animateFlows}
+              onCheckedChange={handleAnimateFlowsChange}
+            />
           </div>
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Switch 
-                id="highlight-path" 
-                checked={highlightCriticalPath}
-                onCheckedChange={(checked) => handleSettingChange('highlightCriticalPath', checked)}
-                disabled={loading}
-              />
-              <Label htmlFor="highlight-path">Highlight Critical Path</Label>
-            </div>
+            <Label htmlFor="highlight-critical-path" className="flex items-center gap-2">
+              Highlight Critical Path
+            </Label>
+            <Switch
+              id="highlight-critical-path"
+              checked={highlightCriticalPath}
+              onCheckedChange={handleHighlightCriticalPathChange}
+            />
           </div>
-          
-          <div className="h-px bg-border my-4" />
-          
-          <div className="flex flex-col gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start" 
-              onClick={handleRefresh}
-              disabled={loading}
-            >
-              <RefreshCw size={14} className="mr-2" />
-              Refresh Layout
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start" 
-              onClick={handleExport}
-              disabled={loading}
-            >
-              <Download size={14} className="mr-2" />
-              Export Visualization
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full justify-start" 
-              onClick={handleShare}
-              disabled={loading}
-            >
-              <Share2 size={14} className="mr-2" />
-              Share
-            </Button>
-          </div>
+
+          {onToggleAI && (
+            <>
+              <Separator className="my-2" />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="use-ai-parser" className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Use Gemini AI Parser
+                </Label>
+                <Switch
+                  id="use-ai-parser"
+                  checked={useAI}
+                  onCheckedChange={handleToggleAI}
+                />
+              </div>
+            </>
+          )}
+        </div>
+        
+        <div className="pt-2">
+          <Button 
+            variant="outline" 
+            className="w-full" 
+            onClick={onRefresh}
+            disabled={loading}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> 
+            Refresh Visualization
+          </Button>
         </div>
       </CardContent>
     </Card>
