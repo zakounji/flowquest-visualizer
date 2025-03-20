@@ -45,10 +45,28 @@ const edgeTypes = {
 
 // Helper function for node class names in minimap
 const nodeColor = (node: Node) => {
-  const entity = node.data?.entity;
-  if (!entity) return '#94a3b8';
+  const nodeData = node.data;
+  if (!nodeData?.entity) return '#94a3b8';
   
-  const style = enhancedEntityStyles[entity.type] || enhancedEntityStyles[EntityType.TASK];
+  const entityType = nodeData.entity.type as string;
+  const style = enhancedEntityStyles[entityType] || enhancedEntityStyles[EntityType.TASK];
+  
+  // Special coloring for ships and boosters
+  if (entityType === EntityType.VEHICLE) {
+    const isShip = nodeData.entity.properties?.role === 'ship' || 
+                 nodeData.entity.properties?.category === 'ship' ||
+                 nodeData.entity.name.toLowerCase().includes('ship') || 
+                 nodeData.entity.name.toLowerCase().includes('starship');
+                 
+    const isBooster = nodeData.entity.properties?.role === 'booster' || 
+                    nodeData.entity.properties?.category === 'booster' ||
+                    nodeData.entity.name.toLowerCase().includes('booster') || 
+                    nodeData.entity.name.toLowerCase().includes('super heavy');
+    
+    if (isShip) return '#9b87f5'; // Purple for ships
+    if (isBooster) return '#F97316'; // Orange for boosters
+  }
+  
   return style.color;
 };
 
@@ -68,6 +86,7 @@ const ProcessFlowInner = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const reactFlowInstance = useReactFlow();
   const d3Container = useRef<SVGSVGElement | null>(null);
+  const [animationText, setAnimationText] = useState<string>('');
   
   // Expose the reactFlowInstance methods via the flowRef
   useEffect(() => {
@@ -86,7 +105,8 @@ const ProcessFlowInner = ({
 
     // Create nodes from entities
     const flowNodes: Node[] = processData.entities.map((entity, index) => {
-      const entityStyle = enhancedEntityStyles[entity.type] || enhancedEntityStyles[EntityType.TASK];
+      const entityType = entity.type as string;
+      const entityStyle = enhancedEntityStyles[entityType] || enhancedEntityStyles[EntityType.TASK];
       const isHighlighted = highlightedPath.includes(entity.id);
       
       // Position nodes in a circular layout if no positioning is provided
@@ -142,6 +162,30 @@ const ProcessFlowInner = ({
     setEdges(flowEdges);
   }, [processData, highlightedPath, showLabels, animateFlows, setNodes, setEdges, onNodeClick, currentAnimationStep, isAnimating]);
 
+  // Update animation text when animation step changes
+  useEffect(() => {
+    if (currentAnimationStep >= 0 && isAnimating && processData?.relationships) {
+      const currentRel = processData.relationships[currentAnimationStep];
+      if (currentRel) {
+        // Find the source and target entities
+        const sourceEntity = processData.entities.find(e => e.id === currentRel.source);
+        const targetEntity = processData.entities.find(e => e.id === currentRel.target);
+        
+        if (sourceEntity && targetEntity) {
+          // Create a descriptive animation text
+          const action = currentRel.properties?.action || 
+                        currentRel.properties?.label || 
+                        currentRel.type;
+                        
+          const text = `${sourceEntity.name} ${action} ${targetEntity.name}`;
+          setAnimationText(text);
+        }
+      }
+    } else {
+      setAnimationText('');
+    }
+  }, [currentAnimationStep, isAnimating, processData]);
+
   // Camera tracking effect for animation
   useEffect(() => {
     if (!reactFlowInstance || currentAnimationStep < 0 || !isAnimating || !processData) return;
@@ -186,35 +230,65 @@ const ProcessFlowInner = ({
   }, []);
 
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
-      connectionLineType={ConnectionLineType.Bezier}
-      defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-      minZoom={0.2}
-      maxZoom={4}
-      fitView
-      attributionPosition="bottom-right"
-      onInit={onInit}
-      proOptions={{ hideAttribution: true }}
-    >
-      <Background color="#f1f5f9" gap={16} size={1} />
-      <Controls showInteractive={false} />
+    <div className="relative h-full w-full">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        connectionLineType={ConnectionLineType.Bezier}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        minZoom={0.2}
+        maxZoom={4}
+        fitView
+        attributionPosition="bottom-right"
+        onInit={onInit}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background color="#f1f5f9" gap={16} size={1} />
+        <Controls showInteractive={false} />
+        
+        {showMinimap && (
+          <MiniMap 
+            nodeColor={nodeColor}
+            maskColor="rgba(0, 0, 0, 0.1)"
+            className="glass-panel"
+            zoomable
+            pannable
+          />
+        )}
+        
+        {/* Animated explanation text at the bottom */}
+        {animationText && isAnimating && (
+          <Panel position="bottom" className="w-full flex justify-center py-4">
+            <div 
+              className="bg-black/70 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in text-center"
+              style={{
+                animation: 'fade-in 0.5s, float 2s ease-in-out infinite',
+                maxWidth: '80%',
+              }}
+            >
+              <p className="font-medium tracking-wide">
+                {animationText}
+              </p>
+            </div>
+          </Panel>
+        )}
+      </ReactFlow>
       
-      {showMinimap && (
-        <MiniMap 
-          nodeColor={nodeColor}
-          maskColor="rgba(0, 0, 0, 0.1)"
-          className="glass-panel"
-          zoomable
-          pannable
-        />
-      )}
-    </ReactFlow>
+      {/* Add floating CSS animation style */}
+      <style>
+        {`
+          @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+          }
+        `}
+      </style>
+    </div>
   );
 };
 

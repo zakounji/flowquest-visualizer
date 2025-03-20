@@ -30,6 +30,7 @@ const ProcessVisualization = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showDetails, setShowDetails] = useState(true);
   const [showMinimap, setShowMinimap] = useState(false);
+  const [completedAnimationSteps, setCompletedAnimationSteps] = useState<number[]>([]);
   
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -100,14 +101,21 @@ const ProcessVisualization = ({
       }
       setIsAnimating(false);
       setCurrentAnimationStep(-1);
+      toast.info('Animation paused');
     } else {
       // Start animation
       setIsAnimating(true);
       setCurrentAnimationStep(0);
+      setCompletedAnimationSteps([]);
       
       // Create a timer to advance the animation steps
       animationTimerRef.current = window.setInterval(() => {
         setCurrentAnimationStep(prev => {
+          // Add the current step to completed steps
+          if (prev >= 0) {
+            setCompletedAnimationSteps(completed => [...completed, prev]);
+          }
+          
           const nextStep = prev + 1;
           if (processData && nextStep >= processData.relationships.length) {
             // Animation complete, stop the timer
@@ -116,12 +124,32 @@ const ProcessVisualization = ({
               animationTimerRef.current = null;
             }
             setIsAnimating(false);
-            toast.info('Animation complete');
+            toast.success('Animation complete', {
+              description: 'All process steps have been animated',
+              icon: '🎬',
+            });
             return -1;
           }
+          
+          // Show toast for current animation step
+          if (processData && nextStep < processData.relationships.length) {
+            const relationship = processData.relationships[nextStep];
+            const sourceEntity = processData.entities.find(e => e.id === relationship.source);
+            const targetEntity = processData.entities.find(e => e.id === relationship.target);
+            
+            if (sourceEntity && targetEntity) {
+              const actionText = relationship.properties?.action || relationship.properties?.label || relationship.type;
+              
+              toast.info(`${sourceEntity.name} → ${targetEntity.name}`, {
+                description: actionText,
+                duration: 1500,
+              });
+            }
+          }
+          
           return nextStep;
         });
-      }, 1500); // Advance every 1.5 seconds
+      }, 2500); // Advance every 2.5 seconds for better readability
     }
   }, [isAnimating, processData]);
 
@@ -240,6 +268,29 @@ const ProcessVisualization = ({
             isOpen={isDetailViewOpen}
             onClose={handleDetailViewClose}
           />
+          
+          {/* Animation step progress indicator */}
+          {(isAnimating || completedAnimationSteps.length > 0) && processData.relationships.length > 0 && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black/50 rounded-full px-4 py-2 text-white text-xs font-medium flex items-center gap-1.5">
+              <span className="animate-pulse mr-1">
+                {isAnimating ? "Animating:" : "Completed:"}
+              </span>
+              <div className="flex space-x-1">
+                {processData.relationships.map((_, index) => (
+                  <div 
+                    key={index}
+                    className={`h-2 w-2 rounded-full ${
+                      currentAnimationStep === index 
+                        ? 'bg-red-500 animate-pulse' 
+                        : completedAnimationSteps.includes(index)
+                          ? 'bg-green-500'
+                          : 'bg-gray-400'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="flex h-full items-center justify-center">

@@ -1,3 +1,4 @@
+
 import { Entity, EntityType, Relationship, EntityStyleMapping, RelationshipType } from '../types/processTypes';
 import { interpolateRainbow, interpolateSpectral } from 'd3-scale-chromatic';
 
@@ -77,7 +78,7 @@ export const enhancedEntityStyles: Record<string, EnhancedEntityStyle> = {
 // For backward compatibility, provide export of defaultEntityStyles with basic properties
 export const defaultEntityStyles: EntityStyleMapping = Object.entries(enhancedEntityStyles).reduce(
   (acc, [key, value]) => {
-    acc[key] = { shape: value.shape, color: value.color };
+    acc[key as keyof EntityStyleMapping] = { shape: value.shape, color: value.color };
     return acc;
   }, 
   {} as EntityStyleMapping
@@ -204,7 +205,7 @@ export function getRelationshipStyle(relationship: Relationship) {
   };
 
   const relType = relationship.type as string || RelationshipType.FLOW;
-  const style = baseStyles[relType] || baseStyles[RelationshipType.FLOW];
+  const style = baseStyles[relType as keyof typeof baseStyles] || baseStyles[RelationshipType.FLOW];
   
   // Apply different styles based on frequency
   const frequency = relationship.metrics?.frequency || 1;
@@ -219,8 +220,6 @@ export function getRelationshipStyle(relationship: Relationship) {
 
 // Enhanced critical path visualization
 export function findCriticalPath(entities: Entity[], relationships: Relationship[]): string[] {
-  // Existing implementation...
-  
   // Create adjacency list
   const adjacencyList = new Map<string, {target: string, frequency: number}[]>();
   
@@ -232,7 +231,7 @@ export function findCriticalPath(entities: Entity[], relationships: Relationship
     const connections = adjacencyList.get(rel.source) || [];
     connections.push({
       target: rel.target,
-      frequency: rel.metrics.frequency
+      frequency: rel.metrics?.frequency || 1
     });
     adjacencyList.set(rel.source, connections);
   });
@@ -259,7 +258,7 @@ export function findCriticalPath(entities: Entity[], relationships: Relationship
   // If no clear start/end, use the node with highest frequency as start
   // and the one with second highest as end
   const sortedByFrequency = [...entities].sort((a, b) => 
-    b.metrics.frequency - a.metrics.frequency
+    (b.metrics?.frequency || 0) - (a.metrics?.frequency || 0)
   );
   
   const effectiveStartNodes = startNodes.length > 0 ? startNodes : [sortedByFrequency[0].id];
@@ -302,7 +301,7 @@ export function findCriticalPath(entities: Entity[], relationships: Relationship
   const pathWeights = allPaths.map(path => {
     const weight = path.reduce((sum, nodeId) => {
       const entity = entities.find(e => e.id === nodeId);
-      return sum + (entity?.metrics.frequency || 0);
+      return sum + (entity?.metrics?.frequency || 0);
     }, 0);
     
     return { path, weight };
@@ -366,7 +365,10 @@ export function calculateEnhancedEntityPositions(
     if (!layerNodes.has(layer)) {
       layerNodes.set(layer, []);
     }
-    layerNodes.get(layer)?.push(entity.id);
+    const layerNodeArray = layerNodes.get(layer);
+    if (layerNodeArray) {
+      layerNodeArray.push(entity.id);
+    }
   });
   
   const maxLayer = Math.max(...Array.from(layerCounts.keys()));
@@ -471,128 +473,142 @@ export function calculateEnhancedEntityPositions(
   return positions;
 }
 
-// Enhanced data model with additional visual properties
+// Enhanced sample data with timing information and ship/booster properties
 export function getSampleProcessData() {
   return {
     entities: [
       {
-        id: "USER_001",
-        type: EntityType.ACTOR,
-        name: "User 001",
+        id: "STARSHIP_SN15",
+        type: EntityType.VEHICLE,
+        name: "Starship SN15",
         properties: {
-          description: "System user initiating the process",
-          icon: "user"
+          description: "Starship prototype number 15",
+          role: "ship",
+          category: "spacecraft"
         },
-        metrics: { frequency: 3 }
+        metrics: { frequency: 3, duration: 45, durationUnit: "days" }
       },
       {
-        id: "FORM_SYSTEM",
-        type: EntityType.SYSTEM,
-        name: "Form System",
+        id: "SUPERHEAVY_BN3",
+        type: EntityType.VEHICLE,
+        name: "Super Heavy BN3",
         properties: {
-          description: "System handling form data",
-          icon: "document"
+          description: "Super Heavy booster prototype 3",
+          role: "booster",
+          category: "booster"
         },
-        metrics: { frequency: 2 }
+        metrics: { frequency: 2, duration: 60, durationUnit: "days" }
       },
       {
-        id: "APPROVAL_TASK",
-        type: EntityType.TASK,
-        name: "Approval Task",
+        id: "STATIC_FIRE",
+        type: EntityType.TEST,
+        name: "Static Fire Test",
         properties: {
-          description: "Task for approving form submission",
-          icon: "check"
+          description: "Engine static fire testing",
+          icon: "flame"
         },
-        metrics: { frequency: 1 }
+        metrics: { frequency: 4, duration: 2, durationUnit: "hours" }
       },
       {
-        id: "NOTIFICATION_SERVICE",
-        type: EntityType.SYSTEM,
-        name: "Notification Service",
+        id: "LAUNCH_SITE",
+        type: EntityType.FACILITY,
+        name: "Launch Site",
         properties: {
-          description: "System sending notifications",
-          icon: "bell"
+          description: "Starbase launch facility",
+          icon: "rocket"
         },
-        metrics: { frequency: 1 }
+        metrics: { frequency: 2, duration: null }
       },
       {
-        id: "ADMIN_USER",
-        type: EntityType.ACTOR,
-        name: "Admin User",
+        id: "FLIGHT_TEST",
+        type: EntityType.MILESTONE,
+        name: "Flight Test",
         properties: {
-          description: "Administrator user",
-          icon: "user-shield"
+          description: "Orbital flight test",
+          icon: "flag"
         },
-        metrics: { frequency: 1 }
+        metrics: { frequency: 1, duration: 8, durationUnit: "minutes" }
       }
     ],
     relationships: [
       {
         id: "rel1",
-        source: "USER_001",
-        target: "FORM_SYSTEM",
-        type: RelationshipType.FLOW,
+        source: "STARSHIP_SN15",
+        target: "STATIC_FIRE",
+        type: RelationshipType.TESTING,
         properties: { 
-          action: "SUBMIT",
-          label: "Submits Form",
+          action: "UNDERGOES",
+          label: "Undergoes Test",
           animate: true
         },
-        metrics: { frequency: 2 }
+        metrics: { frequency: 3, duration: 3, durationUnit: "days" }
       },
       {
         id: "rel2",
-        source: "FORM_SYSTEM",
-        target: "APPROVAL_TASK",
-        type: RelationshipType.FLOW,
+        source: "SUPERHEAVY_BN3",
+        target: "STATIC_FIRE",
+        type: RelationshipType.TESTING,
         properties: {
-          label: "Creates",
+          label: "Undergoes Test",
           animate: true
         },
-        metrics: { frequency: 1 }
+        metrics: { frequency: 2, duration: 4, durationUnit: "days" }
       },
       {
         id: "rel3",
-        source: "APPROVAL_TASK",
-        target: "NOTIFICATION_SERVICE",
+        source: "STATIC_FIRE",
+        target: "LAUNCH_SITE",
         type: RelationshipType.FLOW,
         properties: {
-          label: "Triggers",
+          label: "Conducted At",
           animate: true
         },
-        metrics: { frequency: 1 }
+        metrics: { frequency: 5, duration: 1, durationUnit: "day" }
       },
       {
         id: "rel4",
-        source: "NOTIFICATION_SERVICE",
-        target: "ADMIN_USER",
-        type: RelationshipType.COMMUNICATION,
+        source: "LAUNCH_SITE",
+        target: "SUPERHEAVY_BN3",
+        type: RelationshipType.INTEGRATION,
         properties: { 
-          action: "NOTIFY",
-          label: "Sends Notification",
+          action: "STACKS",
+          label: "Stacks",
           animate: true
         },
-        metrics: { frequency: 1 }
+        metrics: { frequency: 1, duration: 2, durationUnit: "days" }
       },
       {
         id: "rel5",
-        source: "ADMIN_USER",
-        target: "USER_001",
-        type: RelationshipType.COMMUNICATION,
+        source: "SUPERHEAVY_BN3",
+        target: "STARSHIP_SN15",
+        type: RelationshipType.INTEGRATION,
         properties: { 
-          action: "RESPOND",
-          label: "Responds To",
+          action: "CARRIES",
+          label: "Carries",
           animate: true
         },
-        metrics: { frequency: 1 }
+        metrics: { frequency: 1, duration: 1, durationUnit: "day" }
+      },
+      {
+        id: "rel6",
+        source: "STARSHIP_SN15",
+        target: "FLIGHT_TEST",
+        type: RelationshipType.FLOW,
+        properties: { 
+          action: "PERFORMS",
+          label: "Performs",
+          animate: true
+        },
+        metrics: { frequency: 1, duration: 8, durationUnit: "minutes" }
       }
     ],
     metadata: {
       startTime: new Date(2023, 0, 1),
-      endTime: new Date(2023, 0, 1, 1),
-      totalEvents: 5,
-      processName: "Form Submission Process",
+      endTime: new Date(2023, 3, 1),
+      totalEvents: 6,
+      processName: "Starship Development and Testing",
       theme: "light",
-      description: "A visualization of the form submission approval process"
+      description: "A visualization of the Starship and Super Heavy development process"
     },
     visualSettings: {
       showLabels: true,
@@ -633,6 +649,14 @@ export function createSVGMarkers() {
       <linearGradient id="taskGradient" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#63B3ED" />
         <stop offset="100%" stop-color="#3182CE" />
+      </linearGradient>
+      <linearGradient id="shipGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#B794F4" />
+        <stop offset="100%" stop-color="#6B46C1" />
+      </linearGradient>
+      <linearGradient id="boosterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#F6AD55" />
+        <stop offset="100%" stop-color="#DD6B20" />
       </linearGradient>
     </defs>
   `;

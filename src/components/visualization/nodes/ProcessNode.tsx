@@ -1,5 +1,5 @@
 
-import { memo, useRef, useEffect } from 'react';
+import { memo, useRef, useEffect, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import * as d3 from 'd3';
 import { Entity, EntityType } from '@/types/processTypes';
@@ -20,6 +20,23 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
   const { entity, color, isHighlighted, showLabel, onClick, animationStep, isAnimating } = data;
   const nodeSize = 60;
   const svgRef = useRef<SVGSVGElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Determine if this is a ship or booster based on properties or custom metadata
+  const isShip = entity.properties?.role === 'ship' || 
+                 entity.properties?.category === 'ship' ||
+                 entity.name.toLowerCase().includes('ship') || 
+                 entity.name.toLowerCase().includes('starship');
+                 
+  const isBooster = entity.properties?.role === 'booster' || 
+                    entity.properties?.category === 'booster' ||
+                    entity.name.toLowerCase().includes('booster') || 
+                    entity.name.toLowerCase().includes('super heavy');
+
+  // Enhanced colors for ships and boosters
+  const shipColor = '#9b87f5'; // Purple for ships
+  const boosterColor = '#F97316'; // Orange for boosters
+  const entityColor = isShip ? shipColor : isBooster ? boosterColor : color;
 
   // Use D3 to render the node shape based on entity type
   useEffect(() => {
@@ -44,7 +61,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("cy", -15)
           .attr("r", 10)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         // Body
@@ -53,7 +70,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("y1", -5)
           .attr("x2", 0)
           .attr("y2", 15)
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         // Arms
@@ -62,7 +79,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("y1", 0)
           .attr("x2", 12)
           .attr("y2", 0)
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         // Legs
@@ -71,7 +88,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("y1", 15)
           .attr("x2", -10)
           .attr("y2", 25)
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         actorGroup.append("line")
@@ -79,7 +96,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("y1", 15)
           .attr("x2", 10)
           .attr("y2", 25)
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
         break;
         
@@ -93,7 +110,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("rx", 3)
           .attr("ry", 3)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         // Server lines
@@ -103,7 +120,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             .attr("y1", 10 + i * 10)
             .attr("x2", nodeSize - 15)
             .attr("y2", 10 + i * 10)
-            .attr("stroke", color)
+            .attr("stroke", entityColor)
             .attr("stroke-opacity", 0.5)
             .attr("stroke-width", 1);
         }
@@ -130,7 +147,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
         nodeGroup.append("polygon")
           .attr("points", hexPoints.map(p => p.join(",")).join(" "))
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         // Lightning bolt for event
@@ -146,7 +163,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
         
         nodeGroup.append("polygon")
           .attr("points", boltPoints.map(p => p.join(",")).join(" "))
-          .attr("fill", color)
+          .attr("fill", entityColor)
           .attr("opacity", 0.8);
         break;
         
@@ -166,7 +183,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             z
           `)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         // Document lines
@@ -176,7 +193,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             .attr("y1", 18 + i * 7)
             .attr("x2", nodeSize - 18)
             .attr("y2", 18 + i * 7)
-            .attr("stroke", color)
+            .attr("stroke", entityColor)
             .attr("stroke-opacity", 0.5)
             .attr("stroke-width", 1);
         }
@@ -189,87 +206,188 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             h5
             z
           `)
-          .attr("fill", color)
+          .attr("fill", entityColor)
           .attr("opacity", 0.5);
         break;
 
       case EntityType.VEHICLE:
-        // Rocket shape for vehicles
-        const rocketGroup = nodeGroup.append("g")
-          .attr("transform", `translate(${nodeSize/2}, ${nodeSize/2})`);
+        // ENHANCED: Different designs for ships vs boosters
+        if (isShip) {
+          // Starship design
+          const shipGroup = nodeGroup.append("g")
+            .attr("transform", `translate(${nodeSize/2}, ${nodeSize/2})`);
           
-        // Rocket body
-        rocketGroup.append("path")
-          .attr("d", `
-            M0,-25
-            C5,-20 10,-15 10,0
-            L10,15
-            L0,22
-            L-10,15
-            L-10,0
-            C-10,-15 -5,-20 0,-25
-            Z
-          `)
-          .attr("fill", "white")
-          .attr("stroke", color)
-          .attr("stroke-width", isHighlighted ? 2 : 1);
-        
-        // Windows
-        rocketGroup.append("circle")
-          .attr("cx", 0)
-          .attr("cy", -5)
-          .attr("r", 3)
-          .attr("fill", color)
-          .attr("opacity", 0.7);
-          
-        // Fins
-        rocketGroup.append("path")
-          .attr("d", `
-            M10,5
-            L18,15
-            L10,15
-            Z
-          `)
-          .attr("fill", color)
-          .attr("opacity", 0.7);
-          
-        rocketGroup.append("path")
-          .attr("d", `
-            M-10,5
-            L-18,15
-            L-10,15
-            Z
-          `)
-          .attr("fill", color)
-          .attr("opacity", 0.7);
-          
-        // Flames when animating
-        if (isAnimating) {
-          const flameGroup = rocketGroup.append("g")
-            .attr("class", "rocket-flames");
-            
-          flameGroup.append("path")
+          // Ship body
+          shipGroup.append("path")
             .attr("d", `
-              M-5,22
-              Q0,35 5,22
+              M0,-25
+              C8,-22 12,-18 12,0
+              L8,18
+              C4,22 -4,22 -8,18
+              L-12,0
+              C-12,-18 -8,-22 0,-25
               Z
             `)
-            .attr("fill", "#ff6b6b")
-            .attr("opacity", 0.9);
+            .attr("fill", "white")
+            .attr("stroke", entityColor)
+            .attr("stroke-width", isHighlighted ? 2 : 1);
+          
+          // Windows
+          shipGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", -10)
+            .attr("r", 3)
+            .attr("fill", entityColor)
+            .attr("opacity", 0.7);
             
-          // Animation style
-          const style = document.createElement('style');
-          style.textContent = `
-            @keyframes flicker {
-              0% { opacity: 0.7; }
-              50% { opacity: 0.9; }
-              100% { opacity: 0.7; }
+          shipGroup.append("circle")
+            .attr("cx", 0)
+            .attr("cy", 0)
+            .attr("r", 2)
+            .attr("fill", entityColor)
+            .attr("opacity", 0.7);
+          
+          // Fins
+          shipGroup.append("path")
+            .attr("d", `
+              M8,10
+              L15,18
+              L8,18
+              Z
+            `)
+            .attr("fill", entityColor)
+            .attr("opacity", 0.7);
+            
+          shipGroup.append("path")
+            .attr("d", `
+              M-8,10
+              L-15,18
+              L-8,18
+              Z
+            `)
+            .attr("fill", entityColor)
+            .attr("opacity", 0.7);
+          
+          // Flames when animating
+          if (isAnimating) {
+            const flameGroup = shipGroup.append("g")
+              .attr("class", "ship-flames");
+              
+            flameGroup.append("path")
+              .attr("d", `
+                M-6,22
+                Q0,35 6,22
+                Z
+              `)
+              .attr("fill", "#ff6b6b")
+              .attr("opacity", 0.9);
+              
+            flameGroup.append("path")
+              .attr("d", `
+                M-3,22
+                Q0,30 3,22
+                Z
+              `)
+              .attr("fill", "#ffc107")
+              .attr("opacity", 0.9);
+              
+            // Animation style
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes flicker {
+                0% { opacity: 0.7; transform: scaleY(0.8); }
+                50% { opacity: 0.9; transform: scaleY(1.1); }
+                100% { opacity: 0.7; transform: scaleY(0.8); }
+              }
+              .ship-flames {
+                animation: flicker 0.5s infinite;
+                transform-origin: center bottom;
+              }
+            `;
+            document.head.appendChild(style);
+          }
+        } else {
+          // Super Heavy Booster design
+          const boosterGroup = nodeGroup.append("g")
+            .attr("transform", `translate(${nodeSize/2}, ${nodeSize/2})`);
+          
+          // Booster body - wider and more cylindrical
+          boosterGroup.append("path")
+            .attr("d", `
+              M-12,-25
+              L-12,15
+              C-12,20 12,20 12,15
+              L12,-25
+              C12,-28 -12,-28 -12,-25
+              Z
+            `)
+            .attr("fill", "white")
+            .attr("stroke", entityColor)
+            .attr("stroke-width", isHighlighted ? 2 : 1);
+          
+          // Grid pattern
+          for (let i = -20; i < 15; i += 7) {
+            boosterGroup.append("line")
+              .attr("x1", -11)
+              .attr("y1", i)
+              .attr("x2", 11)
+              .attr("y2", i)
+              .attr("stroke", entityColor)
+              .attr("stroke-opacity", 0.3)
+              .attr("stroke-width", 1);
+          }
+          
+          // Engine details
+          for (let i = -8; i <= 8; i += 8) {
+            boosterGroup.append("circle")
+              .attr("cx", i)
+              .attr("cy", 18)
+              .attr("r", 3)
+              .attr("fill", entityColor)
+              .attr("opacity", 0.5);
+          }
+          
+          // Flames when animating
+          if (isAnimating) {
+            const flameGroup = boosterGroup.append("g")
+              .attr("class", "booster-flames");
+            
+            // Multiple engine flames
+            for (let i = -8; i <= 8; i += 8) {
+              flameGroup.append("path")
+                .attr("d", `
+                  M${i-3},20
+                  Q${i},30 ${i+3},20
+                  Z
+                `)
+                .attr("fill", "#ff6b6b")
+                .attr("opacity", 0.9);
+                
+              flameGroup.append("path")
+                .attr("d", `
+                  M${i-1.5},20
+                  Q${i},25 ${i+1.5},20
+                  Z
+                `)
+                .attr("fill", "#ffc107")
+                .attr("opacity", 0.9);
             }
-            .rocket-flames {
-              animation: flicker 0.5s infinite;
-            }
-          `;
-          document.head.appendChild(style);
+              
+            // Animation style
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes boosterFlicker {
+                0% { opacity: 0.7; transform: scaleY(0.8); }
+                50% { opacity: 0.9; transform: scaleY(1.2); }
+                100% { opacity: 0.7; transform: scaleY(0.8); }
+              }
+              .booster-flames {
+                animation: boosterFlicker 0.4s infinite;
+                transform-origin: center bottom;
+              }
+            `;
+            document.head.appendChild(style);
+          }
         }
         break;
           
@@ -312,7 +430,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             z
           `)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
         break;
           
@@ -352,7 +470,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
         componentGroup.append("path")
           .attr("d", gearPath.join(' '))
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
             
         // Center hole
@@ -360,7 +478,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("cx", 0)
           .attr("cy", 0)
           .attr("r", 5)
-          .attr("fill", color)
+          .attr("fill", entityColor)
           .attr("opacity", 0.8);
           
         if (isAnimating) {
@@ -395,7 +513,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             z
           `)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
           
         // Liquid in flask
@@ -409,7 +527,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             L40,35
             z
           `)
-          .attr("fill", color)
+          .attr("fill", entityColor)
           .attr("opacity", 0.3);
           
         // Bubbles animation when active
@@ -453,7 +571,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("height", 10)
           .attr("rx", 2)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
         
         // Pole
@@ -463,7 +581,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("width", 6)
           .attr("height", 25)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
         
         // Flag
@@ -474,7 +592,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             L33,20
             Z
           `)
-          .attr("fill", color)
+          .attr("fill", entityColor)
           .attr("opacity", 0.8);
           
         // Sparkle effect when highlighted
@@ -492,7 +610,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
               .attr("cy", sparkle.y)
               .attr("r", sparkle.r)
               .attr("fill", "white")
-              .attr("stroke", color)
+              .attr("stroke", entityColor)
               .attr("stroke-width", 1)
               .style("animation", `sparkle ${1 + i * 0.3}s infinite alternate`);
           });
@@ -517,7 +635,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("height", nodeSize - 20)
           .attr("rx", 5)
           .attr("fill", "white")
-          .attr("stroke", color)
+          .attr("stroke", entityColor)
           .attr("stroke-width", isHighlighted ? 2 : 1);
         
         // Gear/cog for task
@@ -540,7 +658,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
             .attr("y1", y1)
             .attr("x2", x2)
             .attr("y2", y2)
-            .attr("stroke", color)
+            .attr("stroke", entityColor)
             .attr("stroke-width", 2)
             .attr("opacity", 0.8);
         }
@@ -550,7 +668,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
           .attr("cx", 0)
           .attr("cy", 0)
           .attr("r", 5)
-          .attr("fill", color)
+          .attr("fill", entityColor)
           .attr("opacity", 0.8);
     }
     
@@ -574,6 +692,58 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
         .text(entity.metrics.frequency);
     }
     
+    // NEW: Add visual indicator for event timing if available
+    if (entity.metrics && entity.metrics.duration) {
+      // Create a small clock/timer indicator
+      const timerGroup = nodeGroup.append("g")
+        .attr("transform", `translate(${nodeSize - 8}, ${nodeSize - 8})`);
+        
+      // Background circle for timer
+      timerGroup.append("circle")
+        .attr("r", 8)
+        .attr("fill", "#1E293B")
+        .attr("stroke", "white")
+        .attr("stroke-width", 1);
+      
+      // Clock hands
+      timerGroup.append("line")
+        .attr("x1", 0)
+        .attr("y1", 0)
+        .attr("x2", 0)
+        .attr("y2", -5)
+        .attr("stroke", "white")
+        .attr("stroke-width", 1.5);
+        
+      timerGroup.append("line")
+        .attr("x1", 0)
+        .attr("y1", 0)
+        .attr("x2", 4)
+        .attr("y2", 1)
+        .attr("stroke", "white")
+        .attr("stroke-width", 1.5);
+        
+      // Add the duration text in a tooltip that shows on hover
+      if (isHovered) {
+        nodeGroup.append("rect")
+          .attr("x", nodeSize / 2 - 20)
+          .attr("y", -25)
+          .attr("width", 40)
+          .attr("height", 20)
+          .attr("rx", 5)
+          .attr("fill", "rgba(0, 0, 0, 0.7)")
+          .attr("class", "animate-fade-in");
+          
+        nodeGroup.append("text")
+          .attr("x", nodeSize / 2)
+          .attr("y", -12)
+          .attr("text-anchor", "middle")
+          .attr("fill", "white")
+          .attr("font-size", "10px")
+          .attr("class", "animate-fade-in")
+          .text(`${entity.metrics.duration} ${entity.metrics.durationUnit || 'days'}`);
+      }
+    }
+    
     // Add pulse animation for highlighted nodes
     if (isHighlighted) {
       const pulseCircle = nodeGroup.append("circle")
@@ -581,7 +751,7 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
         .attr("cy", nodeSize / 2)
         .attr("r", nodeSize / 2 - 5)
         .attr("fill", "none")
-        .attr("stroke", color)
+        .attr("stroke", entityColor)
         .attr("stroke-width", 2)
         .attr("opacity", 0.5)
         .attr("stroke-dasharray", "5,5");
@@ -602,15 +772,31 @@ const ProcessNode = memo(({ data }: ProcessNodeProps) => {
       }
     }
     
+    // Enhanced hover effect
+    if (isHovered) {
+      nodeGroup.append("circle")
+        .attr("cx", nodeSize / 2)
+        .attr("cy", nodeSize / 2)
+        .attr("r", nodeSize / 2 + 5)
+        .attr("fill", "none")
+        .attr("stroke", entityColor)
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "2,2")
+        .attr("opacity", 0.7)
+        .attr("class", "animate-fade-in");
+    }
+    
     // Make node clickable
     svg.on("click", onClick);
     
-  }, [entity, color, isHighlighted, animationStep, isAnimating, onClick]);
+  }, [entity, entityColor, color, isHighlighted, animationStep, isAnimating, onClick, isHovered, isShip, isBooster]);
 
   return (
     <div 
       className={`relative w-[${nodeSize}px] h-[${nodeSize}px] transition-all duration-200 cursor-pointer ${isHighlighted ? 'shadow-lg' : ''}`}
       style={{ transform: isHighlighted ? 'scale(1.05)' : 'scale(1)' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <Handle type="target" position={Position.Top} />
       <Handle type="source" position={Position.Bottom} />
