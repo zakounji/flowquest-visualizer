@@ -16,9 +16,13 @@ serve(async (req) => {
   }
 
   try {
-    const { logText } = await req.json();
+    console.log("Edge function invoked with method:", req.method);
+    
+    const requestData = await req.json();
+    const { logText } = requestData;
 
     if (!logText || typeof logText !== 'string') {
+      console.error("Invalid log text provided:", logText);
       return new Response(
         JSON.stringify({ error: 'Invalid log text provided' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -26,6 +30,14 @@ serve(async (req) => {
     }
 
     console.log("Processing log:", logText.substring(0, 100) + "...");
+    
+    if (!GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY is not set");
+      return new Response(
+        JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Structured prompt for Gemini
     const prompt = `
@@ -85,6 +97,8 @@ serve(async (req) => {
       Log to parse: ${logText}
     `;
 
+    console.log("Sending request to Gemini API...");
+
     // Make request to Gemini API
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
@@ -109,7 +123,7 @@ serve(async (req) => {
     });
 
     const data = await response.json();
-    console.log("Gemini API response received");
+    console.log("Gemini API response received:", data.candidates ? "Success" : "Failed");
 
     // Extract the JSON from the text response
     let processedData;
@@ -118,6 +132,7 @@ serve(async (req) => {
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!text) {
+        console.error("No valid response text from Gemini API");
         throw new Error("No valid response from Gemini API");
       }
 
@@ -129,10 +144,10 @@ serve(async (req) => {
         processedData = JSON.parse(text);
       }
       
-      console.log("Successfully parsed log into structured data");
+      console.log("Successfully parsed log into structured data with entities:", processedData.entities?.length || 0);
     } catch (error) {
       console.error("Error parsing JSON from Gemini response:", error);
-      console.log("Raw response:", JSON.stringify(data));
+      console.log("Raw response:", JSON.stringify(data).substring(0, 500) + "...");
       
       return new Response(
         JSON.stringify({ 

@@ -1,8 +1,16 @@
 import { Entity, EntityType, Relationship, EntityStyleMapping, RelationshipType } from '../types/processTypes';
 import { interpolateRainbow, interpolateSpectral } from 'd3-scale-chromatic';
 
+// Define extended entity style interface to include additional styling properties
+interface EnhancedEntityStyle {
+  shape: string;
+  color: string;
+  shadowColor?: string;
+  gradient?: string[];
+}
+
 // Enhanced color palette with more vibrant, accessible colors
-export const enhancedEntityStyles: EntityStyleMapping = {
+export const enhancedEntityStyles: Record<string, EnhancedEntityStyle> = {
   [EntityType.TASK]: {
     shape: 'rectangle',
     color: '#4299E1', // Brighter blue
@@ -33,31 +41,73 @@ export const enhancedEntityStyles: EntityStyleMapping = {
     shadowColor: '#B83280', // Darker pink for shadow
     gradient: ['#F687B3', '#D53F8C'] // Gradient effect
   },
+  // Add support for SpaceX specific entity types
+  [EntityType.VEHICLE]: {
+    shape: 'rectangle',
+    color: '#2B6CB0', // Deep blue
+    shadowColor: '#1A365D', 
+    gradient: ['#4299E1', '#2C5282']
+  },
+  [EntityType.FACILITY]: {
+    shape: 'rectangle',
+    color: '#48BB78', // Green
+    shadowColor: '#276749',
+    gradient: ['#68D391', '#2F855A']
+  },
+  [EntityType.COMPONENT]: {
+    shape: 'circle',
+    color: '#ED8936', // Orange
+    shadowColor: '#9C4221',
+    gradient: ['#F6AD55', '#C05621']
+  },
+  [EntityType.TEST]: {
+    shape: 'diamond',
+    color: '#9F7AEA', // Purple
+    shadowColor: '#553C9A',
+    gradient: ['#B794F4', '#6B46C1']
+  },
+  [EntityType.MILESTONE]: {
+    shape: 'hexagon',
+    color: '#ED64A6', // Pink
+    shadowColor: '#97266D',
+    gradient: ['#F687B3', '#B83280']
+  },
 };
+
+// For backward compatibility, provide export of defaultEntityStyles with basic properties
+export const defaultEntityStyles: EntityStyleMapping = Object.entries(enhancedEntityStyles).reduce(
+  (acc, [key, value]) => {
+    acc[key] = { shape: value.shape, color: value.color };
+    return acc;
+  }, 
+  {} as EntityStyleMapping
+);
 
 // Function to render node with enhanced visual effects
 export function getEnhancedNodeShape(entity: Entity, size: number = 80) {
-  const type = entity.type;
-  const style = enhancedEntityStyles[type];
+  const type = entity.type as string;
+  const style = enhancedEntityStyles[type] || enhancedEntityStyles[EntityType.RESOURCE];
   const shape = getNodeShape(entity, size);
   
   return {
     path: shape,
     style: {
-      ...style,
+      fill: style.color,
       filter: 'drop-shadow(3px 3px 5px rgba(0,0,0,0.3))',
       strokeWidth: 2,
-      stroke: style.shadowColor
+      stroke: style.shadowColor || '#000000'
     }
   };
 }
 
 // The original shape function
 export function getNodeShape(entity: Entity, size: number = 80) {
-  const type = entity.type;
+  const type = entity.type as string;
   
   switch (type) {
     case EntityType.TASK:
+    case EntityType.VEHICLE:
+    case EntityType.FACILITY:
       return `M0,${size/6} 
               Q0,0 ${size/6},0 
               L${size - size/6},0 
@@ -68,18 +118,21 @@ export function getNodeShape(entity: Entity, size: number = 80) {
               Q0,${size} 0,${size - size/6} Z`;
     
     case EntityType.ACTOR:
+    case EntityType.COMPONENT:
       const radius = size / 2;
       return `M${size/2},0 
               A${radius},${radius} 0 1,1 ${size/2},${size} 
               A${radius},${radius} 0 1,1 ${size/2},0 Z`;
     
     case EntityType.SYSTEM:
+    case EntityType.TEST:
       return `M${size/2},0 
               L${size},${size/2} 
               L${size/2},${size} 
               L0,${size/2} Z`;
     
     case EntityType.EVENT:
+    case EntityType.MILESTONE:
       return `M${size/4},0 
               L${size*3/4},0 
               L${size},${size/2} 
@@ -122,15 +175,44 @@ export function getRelationshipStyle(relationship: Relationship) {
       stroke: '#DD6B20',
       strokeDasharray: '',
       markerEnd: 'url(#diamond)'
+    },
+    // Add SpaceX specific relationship styles
+    [RelationshipType.TRANSFER]: {
+      strokeWidth: 2,
+      stroke: '#2B6CB0',
+      strokeDasharray: '2,2',
+      markerEnd: 'url(#arrowhead)'
+    },
+    [RelationshipType.INTEGRATION]: {
+      strokeWidth: 2,
+      stroke: '#48BB78',
+      strokeDasharray: '',
+      markerEnd: 'url(#diamond)'
+    },
+    [RelationshipType.TESTING]: {
+      strokeWidth: 2,
+      stroke: '#9F7AEA',
+      strokeDasharray: '5,2',
+      markerEnd: 'url(#arrowhead)'
+    },
+    [RelationshipType.SUPPLY]: {
+      strokeWidth: 2,
+      stroke: '#ED64A6',
+      strokeDasharray: '8,3',
+      markerEnd: 'url(#diamond)'
     }
   };
 
+  const relType = relationship.type as string || RelationshipType.FLOW;
+  const style = baseStyles[relType] || baseStyles[RelationshipType.FLOW];
+  
   // Apply different styles based on frequency
-  const frequencyMultiplier = Math.min(relationship.metrics.frequency, 3) / 2;
+  const frequency = relationship.metrics?.frequency || 1;
+  const frequencyMultiplier = Math.min(frequency, 3) / 2;
   
   return {
-    ...baseStyles[relationship.type],
-    strokeWidth: baseStyles[relationship.type].strokeWidth * frequencyMultiplier,
+    ...style,
+    strokeWidth: style.strokeWidth * frequencyMultiplier,
     opacity: 0.7 + (frequencyMultiplier * 0.1)
   };
 }

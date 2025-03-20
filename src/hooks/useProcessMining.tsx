@@ -25,16 +25,22 @@ export function useProcessMining(logText: string) {
         let result: ProcessData;
         
         if (useAI) {
+          console.log("Calling Gemini AI Edge Function with log text:", logText.substring(0, 100) + "...");
+          
           // Use Gemini AI via Edge Function
-          const { data, error } = await supabase.functions.invoke('parse-log', {
+          const { data, error: functionError } = await supabase.functions.invoke('parse-log', {
             body: { logText },
           });
           
-          if (error) {
-            throw new Error(`AI parser error: ${error.message}`);
+          if (functionError) {
+            console.error("Edge function error:", functionError);
+            throw new Error(`AI parser error: ${functionError.message}`);
           }
           
+          console.log("Received Edge Function response:", data);
+          
           if (!data || !data.entities || !data.relationships) {
+            console.error("Invalid data structure:", data);
             throw new Error('AI parser returned invalid data structure');
           }
           

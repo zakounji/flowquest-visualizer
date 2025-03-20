@@ -21,6 +21,7 @@ const Index = () => {
   });
 
   const handleLogSubmit = (text: string) => {
+    console.log("Processing log:", text.substring(0, 100) + "...");
     setLogText(text);
   };
 
