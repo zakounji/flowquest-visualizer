@@ -13,7 +13,8 @@ import {
   Panel,
   useReactFlow,
   ReactFlowProvider,
-  MiniMap
+  MiniMap,
+  PanelPosition
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ProcessData, Entity, Relationship, EntityType } from '@/types/processTypes';
@@ -53,15 +54,20 @@ const nodeColor = (node: Node) => {
   
   // Special coloring for ships and boosters
   if (entityType === EntityType.VEHICLE) {
-    const isShip = nodeData.entity.properties?.role === 'ship' || 
-                 nodeData.entity.properties?.category === 'ship' ||
-                 nodeData.entity.name.toLowerCase().includes('ship') || 
-                 nodeData.entity.name.toLowerCase().includes('starship');
+    const entity = nodeData.entity as Entity;
+    
+    const isShip = entity.properties?.role === 'ship' || 
+                 entity.properties?.category === 'ship' ||
+                 entity.name.toLowerCase().includes('ship') || 
+                 entity.name.toLowerCase().includes('starship') ||
+                 entity.name.toLowerCase().includes('s') && 
+                 !entity.name.toLowerCase().includes('booster');
                  
-    const isBooster = nodeData.entity.properties?.role === 'booster' || 
-                    nodeData.entity.properties?.category === 'booster' ||
-                    nodeData.entity.name.toLowerCase().includes('booster') || 
-                    nodeData.entity.name.toLowerCase().includes('super heavy');
+    const isBooster = entity.properties?.role === 'booster' || 
+                    entity.properties?.category === 'booster' ||
+                    entity.name.toLowerCase().includes('booster') || 
+                    entity.name.toLowerCase().includes('super heavy') ||
+                    entity.name.toLowerCase().includes('b');
     
     if (isShip) return '#9b87f5'; // Purple for ships
     if (isBooster) return '#F97316'; // Orange for boosters
@@ -87,6 +93,8 @@ const ProcessFlowInner = ({
   const reactFlowInstance = useReactFlow();
   const d3Container = useRef<SVGSVGElement | null>(null);
   const [animationText, setAnimationText] = useState<string>('');
+  const [summaryVisible, setSummaryVisible] = useState<boolean>(false);
+  const [animationSummary, setAnimationSummary] = useState<string[]>([]);
   
   // Expose the reactFlowInstance methods via the flowRef
   useEffect(() => {
@@ -179,12 +187,26 @@ const ProcessFlowInner = ({
                         
           const text = `${sourceEntity.name} ${action} ${targetEntity.name}`;
           setAnimationText(text);
+          
+          // Collect animation steps for summary
+          setAnimationSummary(prev => [...prev, text]);
         }
       }
+    } else if (currentAnimationStep === -1 && processData?.relationships?.length > 0 && animationSummary.length > 0) {
+      // Animation has ended, show summary
+      setSummaryVisible(true);
     } else {
       setAnimationText('');
     }
   }, [currentAnimationStep, isAnimating, processData]);
+
+  // Reset the summary when starting a new animation
+  useEffect(() => {
+    if (currentAnimationStep === 0 && isAnimating) {
+      setAnimationSummary([]);
+      setSummaryVisible(false);
+    }
+  }, [currentAnimationStep, isAnimating]);
 
   // Camera tracking effect for animation
   useEffect(() => {
@@ -275,6 +297,33 @@ const ProcessFlowInner = ({
               </p>
             </div>
           </Panel>
+        )}
+        
+        {/* Animation summary overlay */}
+        {summaryVisible && !isAnimating && (
+          <div className="absolute inset-0 bg-black/40 z-10 flex items-center justify-center">
+            <div className="bg-white/90 rounded-lg shadow-xl p-6 max-w-3xl max-h-[80vh] overflow-auto">
+              <h3 className="text-xl font-semibold mb-4 text-center">Process Summary</h3>
+              <div className="space-y-3">
+                {animationSummary.map((step, index) => (
+                  <div key={index} className="flex items-start">
+                    <div className="bg-indigo-500 text-white rounded-full w-6 h-6 flex items-center justify-center mt-0.5 flex-shrink-0">
+                      {index + 1}
+                    </div>
+                    <p className="ml-3">{step}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 flex justify-center">
+                <button 
+                  onClick={() => setSummaryVisible(false)}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md transition-colors"
+                >
+                  Close Summary
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </ReactFlow>
       

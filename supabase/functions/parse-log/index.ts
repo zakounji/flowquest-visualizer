@@ -39,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    // Structured prompt for Gemini
+    // Structured prompt for Gemini with improved entity normalization
     const prompt = `
       You are a specialized log parsing AI for SpaceX Starship development logs.
       
@@ -55,6 +55,14 @@ serve(async (req) => {
       - ACTOR (People, teams)
       - EVENT (Launches, landings)
       - RESOURCE (Other resources)
+      
+      IMPORTANT: Normalize entity names to avoid duplication. For example:
+      - Treat "Heat shield tiles" and "Heat shield" as the same entity "Heat shield"
+      - Treat "S28" and "Starship S28" as the same entity "S28"
+      - Treat "B9" and "Booster B9" as the same entity "B9"
+      - Identify if an entity is a ship (prefixed with S) or a booster (prefixed with B)
+      
+      For ships (like S28), add a property "role": "ship" and for boosters (like B9), add a property "role": "booster"
       
       For each relationship between entities, determine its type:
       - FLOW (Sequential flow)
@@ -72,7 +80,9 @@ serve(async (req) => {
             "id": "entity_id",
             "name": "Entity Name",
             "type": "ENTITY_TYPE",
-            "properties": {},
+            "properties": {
+              "role": "ship" or "booster" (if applicable)
+            },
             "metrics": { "frequency": 1 }
           }
         ],
@@ -145,6 +155,71 @@ serve(async (req) => {
       }
       
       console.log("Successfully parsed log into structured data with entities:", processedData.entities?.length || 0);
+      
+      // Additional post-processing to merge similar entities if needed
+      if (processedData.entities) {
+        // Create a normalized name map
+        const normalizedEntities = new Map();
+        
+        // First pass: normalize entity names and identify duplicates
+        processedData.entities.forEach(entity => {
+          const normalizedName = normalizeEntityName(entity.name);
+          
+          if (normalizedEntities.has(normalizedName)) {
+            // Merge entities
+            const existingEntity = normalizedEntities.get(normalizedName);
+            existingEntity.metrics.frequency += entity.metrics.frequency || 1;
+            
+            // Merge properties
+            if (entity.properties) {
+              existingEntity.properties = { ...existingEntity.properties, ...entity.properties };
+            }
+          } else {
+            // Set ship or booster role if not already set
+            if (entity.type === 'VEHICLE' && !entity.properties?.role) {
+              if (!entity.properties) entity.properties = {};
+              
+              if (/^S\d+/i.test(entity.name) || /starship/i.test(entity.name)) {
+                entity.properties.role = 'ship';
+              } else if (/^B\d+/i.test(entity.name) || /booster/i.test(entity.name)) {
+                entity.properties.role = 'booster';
+              }
+            }
+            
+            normalizedEntities.set(normalizedName, entity);
+          }
+        });
+        
+        // Create id to normalized name mapping for relationship updates
+        const idToNormalizedName = new Map();
+        processedData.entities.forEach(entity => {
+          idToNormalizedName.set(entity.id, normalizeEntityName(entity.name));
+        });
+        
+        // Update entity list with normalized entities
+        processedData.entities = Array.from(normalizedEntities.values());
+        
+        // Update relationships to point to normalized entity ids
+        if (processedData.relationships) {
+          processedData.relationships.forEach(rel => {
+            const sourceNormalized = idToNormalizedName.get(rel.source);
+            const targetNormalized = idToNormalizedName.get(rel.target);
+            
+            if (sourceNormalized) {
+              const newSourceEntity = processedData.entities.find(e => normalizeEntityName(e.name) === sourceNormalized);
+              if (newSourceEntity) rel.source = newSourceEntity.id;
+            }
+            
+            if (targetNormalized) {
+              const newTargetEntity = processedData.entities.find(e => normalizeEntityName(e.name) === targetNormalized);
+              if (newTargetEntity) rel.target = newTargetEntity.id;
+            }
+          });
+        }
+        
+        console.log("Post-processed entities after normalization:", processedData.entities.length);
+      }
+      
     } catch (error) {
       console.error("Error parsing JSON from Gemini response:", error);
       console.log("Raw response:", JSON.stringify(data).substring(0, 500) + "...");
@@ -172,3 +247,33 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to normalize entity names for deduplication
+function normalizeEntityName(name: string): string {
+  if (!name) return '';
+  
+  // Convert to lowercase and remove extra spaces
+  let normalized = name.toLowerCase().trim().replace(/\s+/g, ' ');
+  
+  // Handle common variations of the same entity
+  if (normalized.includes('heat shield')) {
+    return 'heat shield';
+  }
+  
+  if (/^s\d+/.test(normalized) || /starship s\d+/.test(normalized)) {
+    // Extract S number: S28, Starship S28, etc.
+    const match = normalized.match(/s(\d+)/i);
+    if (match) return `s${match[1]}`;
+  }
+  
+  if (/^b\d+/.test(normalized) || /booster b\d+/.test(normalized)) {
+    // Extract B number: B9, Booster B9, etc.
+    const match = normalized.match(/b(\d+)/i);
+    if (match) return `b${match[1]}`;
+  }
+  
+  // Strip common prefixes
+  normalized = normalized.replace(/^(the|a|an) /, '');
+  
+  return normalized;
+}
