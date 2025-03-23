@@ -95,7 +95,7 @@ const EntityNode = ({
   const x = position.x;
   const y = position.y;
   const shape = getNodeShape(entity, nodeSize);
-  const entityStyle = defaultEntityStyles[entity.type];
+  const entityStyle = defaultEntityStyles[entity.type] || defaultEntityStyles[EntityType.RESOURCE];
   
   // Get the appropriate icon component
   const IconComponent = getEntityIcon(entity);

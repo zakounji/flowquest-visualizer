@@ -99,7 +99,9 @@ serve(async (req) => {
             "type": "ENTITY_TYPE",
             "properties": {
               "role": "ship" or "booster" (if applicable),
-              "category": "subcategory_name",
+              "category": "subcategory_name"
+            },
+            "metrics": {
               "frequency": 1
             }
           }
@@ -115,6 +117,9 @@ serve(async (req) => {
               "category": "subcategory_name",
               "timestamp": "2023-01-15T00:00:00Z",
               "duration": "estimated_time_in_hours" (when applicable)
+            },
+            "metrics": {
+              "frequency": 1
             }
           }
         ],
@@ -193,6 +198,13 @@ serve(async (req) => {
         
         // First pass: normalize and deduplicate entities
         processedData.entities.forEach(entity => {
+          // Ensure each entity has a metrics object with frequency
+          if (!entity.metrics) {
+            entity.metrics = { frequency: 1 };
+          } else if (entity.metrics && typeof entity.metrics.frequency !== 'number') {
+            entity.metrics.frequency = 1;
+          }
+          
           const normalizedName = normalizeEntityName(entity.name);
           entityNameMap.set(entity.id, normalizedName);
           
@@ -204,8 +216,12 @@ serve(async (req) => {
             if (!existingEntity.properties) existingEntity.properties = {};
             if (!entity.properties) entity.properties = {};
             
-            existingEntity.properties.frequency = (existingEntity.properties.frequency || 1) + 
-                                                 (entity.properties.frequency || 1);
+            // Ensure metrics objects exist with default values if needed
+            if (!existingEntity.metrics) existingEntity.metrics = { frequency: 1 };
+            if (!entity.metrics) entity.metrics = { frequency: 1 };
+            
+            existingEntity.metrics.frequency = (existingEntity.metrics.frequency || 1) + 
+                                               (entity.metrics.frequency || 1);
             
             // Merge properties (keep more specific categorizations)
             if (entity.properties.category && !existingEntity.properties.category) {
@@ -247,9 +263,11 @@ serve(async (req) => {
               }
             }
             
-            // Set default frequency if not set
-            if (!entity.properties) entity.properties = {};
-            if (!entity.properties.frequency) entity.properties.frequency = 1;
+            // Ensure metrics exists with frequency
+            if (!entity.metrics) entity.metrics = { frequency: 1 };
+            if (typeof entity.metrics.frequency !== 'number') {
+              entity.metrics.frequency = 1;
+            }
             
             normalizedEntities.set(normalizedName, entity);
           }
@@ -273,6 +291,13 @@ serve(async (req) => {
         // Second pass: update relationship references to use deduplicated entity IDs
         if (processedData.relationships) {
           processedData.relationships.forEach(rel => {
+            // Ensure each relationship has a metrics object with frequency
+            if (!rel.metrics) {
+              rel.metrics = { frequency: 1 };
+            } else if (rel.metrics && typeof rel.metrics.frequency !== 'number') {
+              rel.metrics.frequency = 1;
+            }
+            
             // Map source and target to deduplicated entity IDs
             if (idMapping.has(rel.source)) {
               rel.source = idMapping.get(rel.source);
@@ -324,6 +349,19 @@ serve(async (req) => {
             const targetExists = processedData.entities.some(e => e.id === rel.target);
             return sourceExists && targetExists;
           });
+        }
+        
+        // Ensure all required fields exist in the data structure
+        if (!processedData.metadata) {
+          processedData.metadata = {
+            totalEvents: processedData.relationships.length,
+            startTime: new Date().toISOString(),
+            endTime: new Date().toISOString()
+          };
+        }
+        
+        if (!processedData.metadata.totalEvents) {
+          processedData.metadata.totalEvents = processedData.relationships.length;
         }
         
         console.log("Post-processed entities after normalization:", processedData.entities.length);

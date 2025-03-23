@@ -88,7 +88,7 @@ const EntityDetailView = ({ entity, relationships, entities, isOpen, onClose }: 
         
         tooltip.html(`
           <div class="text-xs">
-            <div>${d.type}: ${relatedEntity?.name || 'Unknown'}</div>
+            <div>${d.type || 'Relationship'}: ${relatedEntity?.name || 'Unknown'}</div>
             <div>Frequency: ${d.metrics?.frequency || 0}</div>
           </div>
         `);
@@ -175,8 +175,8 @@ const EntityDetailView = ({ entity, relationships, entities, isOpen, onClose }: 
                         </div>
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <span>{direction}</span>
-                          <span>{r.type?.toLowerCase()}</span>
-                          <span className="px-1 py-0.5 bg-background rounded">{r.metrics?.frequency}</span>
+                          <span>{r.type?.toLowerCase() || 'relates'}</span>
+                          <span className="px-1 py-0.5 bg-background rounded">{r.metrics?.frequency || 0}</span>
                         </div>
                       </div>
                     );

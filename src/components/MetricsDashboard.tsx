@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Entity, Relationship, ProcessData } from '@/types/processTypes';
@@ -28,13 +27,14 @@ const MetricsDashboard = ({ processData }: MetricsDashboardProps) => {
     if (!processData?.entities?.length) return [];
     
     return processData.entities
-      .sort((a, b) => b.metrics.frequency - a.metrics.frequency)
+      .filter(entity => entity.metrics && typeof entity.metrics.frequency === 'number')
+      .sort((a, b) => (b.metrics?.frequency || 0) - (a.metrics?.frequency || 0))
       .slice(0, 5)
       .map(entity => ({
         name: entity.name.length > 15 ? entity.name.substring(0, 12) + '...' : entity.name,
-        frequency: entity.metrics.frequency,
+        frequency: entity.metrics?.frequency || 0,
         type: entity.type,
-        color: defaultEntityStyles[entity.type].color
+        color: defaultEntityStyles[entity.type]?.color || '#cccccc'
       }));
   }, [processData?.entities]);
   
@@ -49,7 +49,7 @@ const MetricsDashboard = ({ processData }: MetricsDashboardProps) => {
     return Object.entries(typeCounts).map(([type, count]) => ({
       name: type.charAt(0) + type.slice(1).toLowerCase(),
       value: count,
-      color: defaultEntityStyles[type as keyof typeof defaultEntityStyles]?.color
+      color: defaultEntityStyles[type as keyof typeof defaultEntityStyles]?.color || '#cccccc'
     }));
   }, [processData?.entities]);
   
@@ -57,7 +57,8 @@ const MetricsDashboard = ({ processData }: MetricsDashboardProps) => {
     if (!processData?.relationships?.length) return [];
     
     return processData.relationships
-      .sort((a, b) => b.metrics.frequency - a.metrics.frequency)
+      .filter(rel => rel.metrics && typeof rel.metrics.frequency === 'number')
+      .sort((a, b) => (b.metrics?.frequency || 0) - (a.metrics?.frequency || 0))
       .slice(0, 5)
       .map(rel => {
         const source = processData.entities.find(e => e.id === rel.source);
@@ -65,7 +66,7 @@ const MetricsDashboard = ({ processData }: MetricsDashboardProps) => {
         
         return {
           name: `${source?.name.substring(0, 6) || 'Unknown'}...→${target?.name.substring(0, 6) || 'Unknown'}...`,
-          frequency: rel.metrics.frequency,
+          frequency: rel.metrics?.frequency || 0,
           sourceType: source?.type || 'unknown',
           targetType: target?.type || 'unknown'
         };
@@ -75,8 +76,9 @@ const MetricsDashboard = ({ processData }: MetricsDashboardProps) => {
   const relationshipLineData = useMemo(() => {
     if (!processData?.relationships?.length) return [];
     
-    // Group by source
     const sourceGroups = processData.relationships.reduce((acc, rel) => {
+      if (!rel.metrics || typeof rel.metrics.frequency !== 'number') return acc;
+      
       const source = processData.entities.find(e => e.id === rel.source)?.name || rel.source;
       if (!acc[source]) acc[source] = 0;
       acc[source] += rel.metrics.frequency;
@@ -99,7 +101,7 @@ const MetricsDashboard = ({ processData }: MetricsDashboardProps) => {
     return {
       entities: processData.entities.length,
       relationships: processData.relationships.length,
-      events: processData.metadata.totalEvents
+      events: processData.metadata?.totalEvents || 0
     };
   }, [processData]);
 
