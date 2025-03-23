@@ -14,7 +14,7 @@ import {
   useReactFlow,
   ReactFlowProvider,
   MiniMap,
-  PanelPosition
+  Position
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ProcessData, Entity, Relationship, EntityType } from '@/types/processTypes';
@@ -49,7 +49,7 @@ const nodeColor = (node: Node) => {
   const nodeData = node.data;
   if (!nodeData?.entity) return '#94a3b8';
   
-  const entityType = nodeData.entity.type as string;
+  const entityType = nodeData.entity.type as EntityType;
   const style = enhancedEntityStyles[entityType] || enhancedEntityStyles[EntityType.TASK];
   
   // Special coloring for ships and boosters
@@ -113,7 +113,7 @@ const ProcessFlowInner = ({
 
     // Create nodes from entities
     const flowNodes: Node[] = processData.entities.map((entity, index) => {
-      const entityType = entity.type as string;
+      const entityType = entity.type as EntityType;
       const entityStyle = enhancedEntityStyles[entityType] || enhancedEntityStyles[EntityType.TASK];
       const isHighlighted = highlightedPath.includes(entity.id);
       
@@ -284,7 +284,7 @@ const ProcessFlowInner = ({
         
         {/* Animated explanation text at the bottom */}
         {animationText && isAnimating && (
-          <Panel position="bottom" className="w-full flex justify-center py-4">
+          <Panel position={Position.Bottom} className="w-full flex justify-center py-4">
             <div 
               className="bg-black/70 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in text-center"
               style={{
