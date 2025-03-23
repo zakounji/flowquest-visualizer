@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
@@ -51,7 +52,14 @@ serve(async (req) => {
       - FACILITY: Launch pads, production facilities
         * subcategories: "launch_pad", "production", "test_stand", "landing_zone"
       - COMPONENT: Engines, heat shield, etc.
-        * subcategories: "engine", "raptor", "heat_shield", "tiles", "grid_fin", "structural", "electronic", "thermal"
+        * subcategories: 
+           - "engine" - For Raptor engines and engine components
+           - "heat_shield" - For heat shield tiles and thermal protection
+           - "grid_fin" - For grid fins, flaps and aerodynamic surfaces
+           - "structural" - For structural components
+           - "electronic" - For avionics, electronics, and control systems
+           - "thermal" - For thermal systems and cryogenic equipment
+           - "propellant" - For fuel/oxidizer tanks and plumbing
       - TEST: Static fires, cryo tests
         * subcategories: "static_fire", "cryo", "pressure", "integration", "flight_test"
       - MILESTONE: Critical achievements
@@ -64,10 +72,12 @@ serve(async (req) => {
         * subcategories: "fuel", "equipment", "data", "material"
       
       ESSENTIAL ENTITY NORMALIZATION RULES:
-      - Merge "Heat shield tiles" and "Heat shield" -> "Heat shield"
+      - Merge "Heat shield tiles" and "Heat shield" -> "Heat shield" with category="heat_shield"
+      - Merge "Raptor" and "Raptor engines" -> "Raptor engines" with category="engine"
+      - Merge "Grid fins" and "Grid fin" -> "Grid fins" with category="grid_fin"
+      - Merge "Avionics" and "Electronic systems" -> "Avionics" with category="electronic"
       - Merge "S28" and "Starship S28" -> "S28" with category="ship" 
       - Merge "B9" and "Booster B9" -> "B9" with category="booster"
-      - Merge "Raptor" and "Raptor engines" -> "Raptor engines"
       - Merge "Static fire" and "Static fire test" -> "Static fire test"
       - Maintain a comprehensive keyword dictionary for entity type detection
       
@@ -258,6 +268,12 @@ serve(async (req) => {
                 entity.properties.category = 'heat_shield';
               } else if (name.includes('fin') || name.includes('flap')) {
                 entity.properties.category = 'grid_fin';
+              } else if (name.includes('avionics') || name.includes('electronic')) {
+                entity.properties.category = 'electronic';
+              } else if (name.includes('tank') || name.includes('pipe') || name.includes('fuel')) {
+                entity.properties.category = 'propellant';
+              } else if (name.includes('thermal') || name.includes('cryo')) {
+                entity.properties.category = 'thermal';
               } else {
                 entity.properties.category = 'structural';
               }
@@ -443,6 +459,14 @@ function normalizeEntityName(name: string): string {
   
   if (normalized.includes('grid fin') || normalized.includes('gridfin')) {
     return 'grid fins';
+  }
+  
+  if (normalized.includes('avionics') || normalized.includes('electronic') || normalized.includes('control system')) {
+    return 'avionics';
+  }
+  
+  if (normalized.includes('tank') || normalized.includes('propellant') || normalized.includes('fuel system')) {
+    return 'propellant tanks';
   }
   
   // Handle test activities

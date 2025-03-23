@@ -1,6 +1,6 @@
 
-import { useRef, useState } from 'react';
-import { Entity, Relationship } from '@/types/processTypes';
+import { useRef } from 'react';
+import { Entity, Relationship, EntityType } from '@/types/processTypes';
 import EntityNode from './EntityNode';
 import RelationshipEdge from './RelationshipEdge';
 

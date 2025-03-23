@@ -16,7 +16,14 @@ import {
   Cpu,
   Gauge,
   LifeBuoy,
-  Orbit
+  Orbit,
+  Flame,
+  GridIcon,
+  Component,
+  Scissors,
+  Boxes,
+  Dice,
+  Thermometer
 } from 'lucide-react';
 
 interface EntityNodeProps {
@@ -34,26 +41,46 @@ const getEntityIcon = (entity: Entity) => {
   // First check for specific named entities or special categories
   const name = entity.name.toLowerCase();
   const role = entity.properties?.role;
+  const category = entity.properties?.category;
   
   // Special handling for vehicles
   if (entity.type === EntityType.VEHICLE) {
-    if (role === 'ship' || name.includes('s') && !name.includes('booster')) {
+    if (role === 'ship' || (name.includes('s') && !name.includes('booster'))) {
       return Rocket;
     } else if (role === 'booster' || name.includes('b') || name.includes('booster')) {
       return Orbit;
     }
+    return Rocket;
   }
   
-  // Check for component subtypes
+  // Check for component subtypes with specialized icons
   if (entity.type === EntityType.COMPONENT) {
-    if (name.includes('engine') || name.includes('raptor')) {
-      return Gauge;
-    } else if (name.includes('shield') || name.includes('tile')) {
-      return Shield;
-    } else if (name.includes('grid') || name.includes('fin')) {
-      return LifeBuoy;
+    // Engine-related components
+    if (name.includes('engine') || name.includes('raptor') || category === 'engine') {
+      return Flame;
+    } 
+    // Heat shield & thermal protection
+    else if (name.includes('shield') || name.includes('tile') || category === 'heat_shield') {
+      return Thermometer;
+    } 
+    // Grid fins & aerodynamic surfaces
+    else if (name.includes('grid') || name.includes('fin') || category === 'grid_fin') {
+      return GridIcon;
     }
-    return Cog;
+    // Structural elements 
+    else if (category === 'structural' || name.includes('structure')) {
+      return Component;
+    }
+    // Electronics & avionics
+    else if (category === 'electronic' || name.includes('electronic') || name.includes('avionics')) {
+      return Cpu;
+    }
+    // Tanks & plumbing
+    else if (name.includes('tank') || name.includes('pipe')) {
+      return Boxes;
+    }
+    // Default component icon
+    return Wrench;
   }
   
   // Default icons based on entity type
@@ -95,7 +122,8 @@ const EntityNode = ({
   const x = position.x;
   const y = position.y;
   const shape = getNodeShape(entity, nodeSize);
-  const entityStyle = defaultEntityStyles[entity.type] || defaultEntityStyles[EntityType.RESOURCE];
+  const entityType = entity.type as keyof typeof defaultEntityStyles;
+  const entityStyle = defaultEntityStyles[entityType] || defaultEntityStyles[EntityType.RESOURCE];
   
   // Get the appropriate icon component
   const IconComponent = getEntityIcon(entity);
